@@ -12,7 +12,7 @@ Before submitting, the student gets rubric-based feedback and answers three comp
 
 Built for the Meta Global AI Developer Hackathon (Indie track, *Build for Your World*).
 
-> 🚧 In active development during the hackathon building period (Oct 27 – Nov 4, 2026). Sections marked _TBD_ are filled in as features land.
+> 🚧 In active development during the hackathon (Oct 26 – Nov 4, 2026). Sections marked _TBD_ are filled in as features land.
 
 ## How it works
 
@@ -30,7 +30,7 @@ Every runtime AI call goes to a Meta model, through one provider module (`packag
 
 | Feature | Model | Status |
 |---|---|---|
-| Guided tutoring, rubric feedback, question generation, grading | Muse Spark (`muse-spark-1.3`, Meta Model API) | Provider + smoke test ✅ |
+| Guided tutoring, rubric feedback, question generation, grading | Muse Spark (`muse-spark-1.3`, Meta Model API) | Provider + smoke test written; not yet run (awaiting API credits) |
 | District-hosted mode | Muse Spark Open via Baseten / Modal | Config switch stubbed |
 | Photo of handwritten work → feedback | Muse Spark (vision) | _TBD_ |
 | Split a worksheet photo into problems | SAM 3.1 | _TBD_ |
@@ -109,4 +109,4 @@ All code in this repo is new and was written for this hackathon. No code comes f
 
 ## License
 
-_TBD_
+[MIT](LICENSE)

@@ -136,16 +136,17 @@ const questions = [
 ];
 
 async function main() {
-  const existing = await db.query.classes.findFirst({
-    where: eq(classes.joinCode, DEMO_JOIN_CODE),
-  });
-  if (existing) {
-    // Cascades to the class, students, assignments and everything below them.
-    await db.delete(teachers).where(eq(teachers.id, existing.teacherId));
-    console.info("Removed previous demo data.");
-  }
-
   await db.transaction(async (tx) => {
+    // Delete and re-create atomically so a failed seed leaves the old demo data intact.
+    const existing = await tx.query.classes.findFirst({
+      where: eq(classes.joinCode, DEMO_JOIN_CODE),
+    });
+    if (existing) {
+      // Cascades to the class, students, assignments and everything below them.
+      await tx.delete(teachers).where(eq(teachers.id, existing.teacherId));
+      console.info("Removed previous demo data.");
+    }
+
     const [teacher] = await tx
       .insert(teachers)
       .values({ displayName: "Ms. Rivera" })
