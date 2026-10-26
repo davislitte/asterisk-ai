@@ -8,7 +8,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test \"provider/**/*.test.ts\"",
+    "test": "node --import tsx --test \"provider/**/*.test.ts\" \"tasks/**/*.test.ts\"",
     "smoke": "node --env-file-if-exists=../../.env.local --import tsx scripts/smoke.ts"
   },
   "dependencies": {

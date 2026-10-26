@@ -9,6 +9,8 @@ export {
   completeJson,
 } from "./provider/client";
 export { ModelCallError, STUDENT_SAFE_ERROR_MESSAGE } from "./provider/errors";
+export { ImportedRubric, RUBRIC_IMPORT_MAX_CHARS } from "./prompts/rubric-import";
+export { importRubric } from "./tasks/import-rubric";
 export {
   type ModelCallLogEntry,
   type ModelCallLogger,
