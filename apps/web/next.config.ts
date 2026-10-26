@@ -6,9 +6,16 @@ import type { NextConfig } from "next";
 const rootEnvFile = path.resolve(process.cwd(), "..", "..", ".env.local");
 if (existsSync(rootEnvFile)) process.loadEnvFile(rootEnvFile);
 
+// Cache Components is off: every dashboard page is per-teacher, cookie-gated
+// data, so the request-time rendering model is the simpler fit.
 const nextConfig: NextConfig = {
-  cacheComponents: true,
-  partialPrefetching: true,
+  experimental: {
+    serverActions: {
+      // Source uploads (PDF/DOCX) go through Server Actions. Vercel caps
+      // function request bodies at 4.5 MB, so stay under that.
+      bodySizeLimit: "4mb",
+    },
+  },
   turbopack: {
     rules: {
       "*.css": {
