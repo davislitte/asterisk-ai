@@ -7,8 +7,12 @@ import { z } from "zod";
  * - BASETEN:  Muse Spark Open on Baseten Model APIs ("district-hosted mode")
  * - MODAL:    Muse Spark Open on our own Modal deployment ("district-hosted mode")
  * All three speak the OpenAI-compatible Chat Completions protocol.
+ *
+ * - FAKE: ⚠️ DEV-ONLY TEST STUB, not a model. Returns canned responses locally
+ *   so the UI can be built without an API key. Never calls any external
+ *   service and refuses to run when NODE_ENV is "production". See ./fake.ts.
  */
-export const AiProvider = z.enum(["META_API", "BASETEN", "MODAL"]);
+export const AiProvider = z.enum(["META_API", "BASETEN", "MODAL", "FAKE"]);
 export type AiProvider = z.infer<typeof AiProvider>;
 
 export interface ProviderConfig {
@@ -74,5 +78,26 @@ export function resolveProviderConfig(
         instructionRole: "system",
         supportsReasoningEffort: false,
       };
+    case "FAKE":
+      assertFakeAllowed(env);
+      return {
+        provider,
+        baseUrl: "fake://local-test-stub",
+        apiKey: undefined,
+        model: FAKE_MODEL_ID,
+        instructionRole: "developer",
+        supportsReasoningEffort: true,
+      };
+  }
+}
+
+export const FAKE_MODEL_ID = "fake-test-stub";
+
+/** The FAKE test stub must never be reachable in a production build. */
+export function assertFakeAllowed(env: Env = process.env): void {
+  if (env.NODE_ENV === "production") {
+    throw new Error(
+      "AI_PROVIDER=FAKE is a dev-only test stub and is disabled when NODE_ENV=production.",
+    );
   }
 }

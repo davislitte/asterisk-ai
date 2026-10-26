@@ -30,7 +30,8 @@ export const chatRole = pgEnum("chat_role", ["student", "assistant"]);
 export const messageFlag = pgEnum("message_flag", ["off_topic", "answer_seeking", "jailbreak"]);
 export const reportKind = pgEnum("report_kind", ["student", "class"]);
 export const questionOrigin = pgEnum("question_origin", ["teacher", "generated"]);
-export const aiProvider = pgEnum("ai_provider", ["META_API", "BASETEN", "MODAL"]);
+// FAKE = the dev-only test stub in packages/ai; logged so stub calls are never mistaken for real ones.
+export const aiProvider = pgEnum("ai_provider", ["META_API", "BASETEN", "MODAL", "FAKE"]);
 
 export const teachers = pgTable("teachers", {
   id: id(),

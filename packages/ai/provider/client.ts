@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { type AiProvider, type ProviderConfig, resolveProviderConfig } from "./config";
 import { ModelCallError, isRetryableStatus } from "./errors";
+import { fakeChatCompletion } from "./fake";
 import { logModelCall } from "./logging";
 
 export type ContentPart =
@@ -146,40 +147,47 @@ async function chatCompletion(
     if (attempts > 0) await sleep(backoffMs(attempts - 1));
     attempts++;
 
-    let res: Response;
-    try {
-      res = await fetch(`${config.baseUrl}/chat/completions`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(req.timeoutMs ?? DEFAULT_TIMEOUT_MS),
-      });
-    } catch (cause) {
-      const timedOut = cause instanceof DOMException && cause.name === "TimeoutError";
-      lastError = new ModelCallError({
-        message: timedOut ? "Request timed out" : `Network error: ${String(cause)}`,
-        provider: config.provider,
-        purpose: req.purpose,
-        retryable: true,
-        cause,
-      });
-      continue;
+    let payload: unknown;
+    if (config.provider === "FAKE") {
+      // Dev-only test stub: canned response built locally, no network, no model.
+      payload = fakeChatCompletion({ purpose: req.purpose, schema: responseFormat?.schema });
+    } else {
+      let res: Response;
+      try {
+        res = await fetch(`${config.baseUrl}/chat/completions`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(req.timeoutMs ?? DEFAULT_TIMEOUT_MS),
+        });
+      } catch (cause) {
+        const timedOut = cause instanceof DOMException && cause.name === "TimeoutError";
+        lastError = new ModelCallError({
+          message: timedOut ? "Request timed out" : `Network error: ${String(cause)}`,
+          provider: config.provider,
+          purpose: req.purpose,
+          retryable: true,
+          cause,
+        });
+        continue;
+      }
+
+      if (!res.ok) {
+        const error = new ModelCallError({
+          message: `HTTP ${res.status}: ${await readErrorMessage(res)}`,
+          provider: config.provider,
+          purpose: req.purpose,
+          status: res.status,
+          retryable: isRetryableStatus(res.status),
+        });
+        if (!error.retryable) return fail(error);
+        lastError = error;
+        continue;
+      }
+      payload = await res.json().catch(() => null);
     }
 
-    if (!res.ok) {
-      const error = new ModelCallError({
-        message: `HTTP ${res.status}: ${await readErrorMessage(res)}`,
-        provider: config.provider,
-        purpose: req.purpose,
-        status: res.status,
-        retryable: isRetryableStatus(res.status),
-      });
-      if (!error.retryable) return fail(error);
-      lastError = error;
-      continue;
-    }
-
-    const parsed = ChatCompletionResponse.safeParse(await res.json().catch(() => null));
+    const parsed = ChatCompletionResponse.safeParse(payload);
     if (!parsed.success) {
       return fail(
         new ModelCallError({

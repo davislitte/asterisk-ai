@@ -31,7 +31,13 @@ async function main() {
   });
   console.info("Classification:", classified.data, "\n");
 
-  console.info("Smoke test passed.");
+  if (config.provider === "FAKE") {
+    console.warn(
+      "Smoke test passed against the FAKE dev-only test stub. This does NOT verify any Meta model.",
+    );
+  } else {
+    console.info("Smoke test passed.");
+  }
 }
 
 main().catch((err) => {

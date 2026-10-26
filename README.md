@@ -40,6 +40,17 @@ Every runtime AI call goes to a Meta model, through one provider module (`packag
 
 We use `muse-spark-1.3`, not the cheaper `-contributor` variant, because that variant uses request data for training and our users are minors.
 
+### `FAKE` provider: a dev-only test stub, not a model
+
+`AI_PROVIDER=FAKE` swaps every model call for a canned response built locally ([`packages/ai/provider/fake.ts`](packages/ai/provider/fake.ts)), so the UI can be built and tested without an API key.
+
+- It never makes a network request and never calls any model, Meta or otherwise.
+- It logs a `[FAKE MODEL]` warning on every call and is recorded as provider `FAKE` in `model_call_logs`.
+- It refuses to run when `NODE_ENV=production`, so it can't be selected in a deployed build.
+- Its responses use the same wire format as Muse Spark and go through the same parsing, validation and logging code.
+
+Nothing produced by `FAKE` is shown in the demo or counted in eval results.
+
 ## Guardrails
 
 _TBD_ — answer-leak check on every response, grounding to teacher sources, off-topic/jailbreak classification, never rewriting student work.
