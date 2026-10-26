@@ -1,8 +1,8 @@
 import "server-only";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
-import { assignments, classes } from "@/db/schema";
+import { assignments, classes, sourceChunks, sources } from "@/db/schema";
 
 const Uuid = z.uuid();
 
@@ -19,3 +19,19 @@ export async function getAssignmentForTeacher(teacherId: string, assignmentId: s
 }
 
 export type TeacherAssignment = NonNullable<Awaited<ReturnType<typeof getAssignmentForTeacher>>>;
+
+/** Call only after an ownership check (getAssignmentForTeacher). */
+export async function listSourcesWithChunks(assignmentId: string) {
+  return db.query.sources.findMany({
+    where: eq(sources.assignmentId, assignmentId),
+    orderBy: asc(sources.createdAt),
+    columns: { id: true, kind: true, title: true, url: true, fileKey: true, createdAt: true },
+    extras: { charCount: sql<number>`length(${sources.extractedText})::int`.as("char_count") },
+    with: {
+      chunks: {
+        orderBy: asc(sourceChunks.ordinal),
+        columns: { id: true, ref: true, text: true },
+      },
+    },
+  });
+}

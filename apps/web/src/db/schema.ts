@@ -1,5 +1,5 @@
 import type { AssignedProblem, RubricLevel } from "@asterisk/shared";
-import { sql } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   check,
@@ -256,3 +256,21 @@ export const modelCallLogs = pgTable(
   },
   (t) => [index("model_call_logs_created_idx").on(t.createdAt)],
 ).enableRLS();
+
+// Relations power `db.query.*.findMany({ with: ... })`; they don't change the SQL schema.
+
+export const sourcesRelations = relations(sources, ({ many }) => ({
+  chunks: many(sourceChunks),
+}));
+
+export const sourceChunksRelations = relations(sourceChunks, ({ one }) => ({
+  source: one(sources, { fields: [sourceChunks.sourceId], references: [sources.id] }),
+}));
+
+export const rubricsRelations = relations(rubrics, ({ many }) => ({
+  criteria: many(rubricCriteria),
+}));
+
+export const rubricCriteriaRelations = relations(rubricCriteria, ({ one }) => ({
+  rubric: one(rubrics, { fields: [rubricCriteria.rubricId], references: [rubrics.id] }),
+}));
