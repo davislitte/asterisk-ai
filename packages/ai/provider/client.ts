@@ -150,7 +150,7 @@ async function chatCompletion(
     let payload: unknown;
     if (config.provider === "FAKE") {
       // Dev-only test stub: canned response built locally, no network, no model.
-      payload = fakeChatCompletion({ purpose: req.purpose, schema: responseFormat?.schema });
+      payload = fakeChatCompletion({ purpose: req.purpose, messages: req.messages, schema: responseFormat?.schema });
     } else {
       let res: Response;
       try {

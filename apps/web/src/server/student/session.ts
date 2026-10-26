@@ -1,0 +1,39 @@
+import "server-only";
+import { eq } from "drizzle-orm";
+import { db } from "@/db/client";
+import { students } from "@/db/schema";
+import { studentJson } from "../student-response";
+import { bearerToken, verifyStudentToken } from "./token";
+
+export interface Student {
+  id: string;
+  classId: string;
+  displayName: string;
+}
+
+export function sessionSecret(): string {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || secret.length < 32) throw new Error("SESSION_SECRET must be set to 32+ random characters.");
+  return secret;
+}
+
+/** Resolves the student from the request's Bearer token, re-checked against the DB. */
+export async function getStudent(request: Request): Promise<Student | null> {
+  const token = bearerToken(request);
+  if (!token) return null;
+  const studentId = verifyStudentToken(token, sessionSecret());
+  if (!studentId) return null;
+  const student = await db.query.students.findFirst({
+    where: eq(students.id, studentId),
+    columns: { id: true, classId: true, displayName: true },
+  });
+  return student ?? null;
+}
+
+export const unauthorized = () =>
+  studentJson({ error: "Please join your class again." }, { status: 401 });
+
+export const badRequest = (error: string) => studentJson({ error }, { status: 400 });
+
+export const notFound = (what = "That assignment") =>
+  studentJson({ error: `${what} isn't available.` }, { status: 404 });

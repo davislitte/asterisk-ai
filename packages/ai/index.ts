@@ -11,6 +11,8 @@ export {
 export { ModelCallError, STUDENT_SAFE_ERROR_MESSAGE } from "./provider/errors";
 export { ImportedRubric, RUBRIC_IMPORT_MAX_CHARS } from "./prompts/rubric-import";
 export { importRubric } from "./tasks/import-rubric";
+export { TUTOR_PROMPT_VERSION, type TutorContext, type TutorSource, type TutorTurn } from "./prompts/tutor";
+export { tutorReply } from "./tasks/tutor-reply";
 export {
   type ModelCallLogEntry,
   type ModelCallLogger,

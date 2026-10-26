@@ -9,6 +9,7 @@
  * The response has the exact wire shape the real providers return, so it flows
  * through the same parsing, validation and logging code in ./client.ts.
  */
+import type { ChatMessage } from "./client";
 import { FAKE_MODEL_ID, assertFakeAllowed } from "./config";
 import { FAKE_FIXTURES } from "./fake-fixtures";
 
@@ -16,6 +17,7 @@ type JsonSchema = Record<string, unknown>;
 
 export interface FakeRequest {
   purpose: string;
+  messages?: ChatMessage[];
   /** Present when the caller asked for structured output. */
   schema?: JsonSchema;
 }
@@ -29,7 +31,8 @@ export function fakeChatCompletion(req: FakeRequest): unknown {
       "No model was called. Set AI_PROVIDER=META_API to use Muse Spark.",
   );
 
-  const fixture = FAKE_FIXTURES[req.purpose];
+  const entry = FAKE_FIXTURES[req.purpose];
+  const fixture = typeof entry === "function" ? entry(req.messages ?? []) : entry;
   const content = fixture
     ? typeof fixture === "string"
       ? fixture
