@@ -212,8 +212,8 @@ export function AssignmentForm({ mode, initial }: { mode: Mode; initial: Assignm
         <CardHeader>
           <CardTitle>Where Asterisk works</CardTitle>
           <CardDescription>
-            The side panel only turns on for pages matching these patterns. Use <code>*</code> as a
-            wildcard and leave out <code>https://</code>.
+            The side panel only turns on for pages matching these patterns. Paste a link or type a
+            pattern, using <code>*</code> as a wildcard.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">

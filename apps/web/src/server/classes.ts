@@ -14,8 +14,10 @@ export async function listClasses(teacherId: string) {
       id: classes.id,
       name: classes.name,
       joinCode: classes.joinCode,
-      assignmentCount: sql<number>`(select count(*) from assignments a where a.class_id = ${classes.id})::int`,
-      studentCount: sql<number>`(select count(*) from students s where s.class_id = ${classes.id})::int`,
+      // Qualify the outer column by hand: Drizzle renders `${classes.id}` as a bare
+      // "id" in single-table selects, which the subquery would bind to its own id.
+      assignmentCount: sql<number>`(select count(*) from assignments a where a.class_id = "classes"."id")::int`,
+      studentCount: sql<number>`(select count(*) from students s where s.class_id = "classes"."id")::int`,
     })
     .from(classes)
     .where(eq(classes.teacherId, teacherId))
@@ -38,7 +40,7 @@ export async function listAssignmentsForClass(classId: string) {
       subject: assignments.subject,
       helpLevel: assignments.helpLevel,
       dueAt: assignments.dueAt,
-      sourceCount: sql<number>`(select count(*) from sources s where s.assignment_id = ${assignments.id})::int`,
+      sourceCount: sql<number>`(select count(*) from sources s where s.assignment_id = "assignments"."id")::int`,
     })
     .from(assignments)
     .where(eq(assignments.classId, classId))

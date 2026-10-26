@@ -5,6 +5,15 @@
  * A pattern with no path matches every page on that host.
  * Query strings and fragments are ignored.
  */
+
+/** Teachers paste full URLs; keep only host + path (drop scheme, query, fragment). */
+export function normalizeAllowlistPattern(pattern: string): string {
+  return pattern
+    .trim()
+    .replace(/^[a-z][a-z0-9+.-]*:\/\//i, "")
+    .replace(/[?#].*$/, "");
+}
+
 export function matchesAllowlist(url: string, patterns: readonly string[]): boolean {
   let parsed: URL;
   try {
@@ -19,7 +28,7 @@ export function matchesAllowlist(url: string, patterns: readonly string[]): bool
 }
 
 function patternToRegExp(pattern: string): RegExp {
-  let p = pattern.trim().toLowerCase();
+  let p = normalizeAllowlistPattern(pattern).toLowerCase();
   if (!p.includes("/")) p = `${p}/*`;
   const [host = "", ...pathParts] = p.split("/");
   const path = `/${pathParts.join("/")}`;

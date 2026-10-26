@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeAllowlistPattern } from "./allowlist";
 
 /** T4: how much the assistant may help. 1 = hints only … 4 = worked parallel example. */
 export const HelpLevel = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]);
@@ -57,8 +58,14 @@ export const RubricLevels = z.array(RubricLevel).min(1);
 /** Allowlist entries are host+path patterns with `*` wildcards, e.g. `docs.google.com/document/*`. */
 export const AllowlistPattern = z
   .string()
-  .min(1)
-  .refine((p) => !/^[a-z]+:\/\//i.test(p), "Omit the scheme (https://)");
+  .transform(normalizeAllowlistPattern)
+  .pipe(
+    z
+      .string()
+      .min(1, "Enter a site, e.g. docs.google.com/document/*")
+      .max(300)
+      .regex(/^[^\s/]+(\/\S*)?$/, "Enter a site like example.com/path/*"),
+  );
 
 export const DEFAULT_ALLOWLIST = ["docs.google.com/document/*"];
 

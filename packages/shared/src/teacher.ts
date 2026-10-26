@@ -15,9 +15,10 @@ export const AssignmentInput = z.object({
   instructions: z.string().trim().min(1, "Instructions are required").max(10_000),
   /** ISO date-time string, or null for no due date. */
   dueAt: z.iso.datetime({ offset: true }).nullable(),
+  // Ids are assigned by the server ("1", "2", …) in the order listed.
   problems: z
     .array(
-      AssignedProblem.extend({
+      AssignedProblem.omit({ id: true }).extend({
         prompt: z.string().trim().min(1, "Each problem needs a prompt").max(2_000),
         answerKey: z.string().trim().max(2_000).optional(),
       }),
@@ -25,7 +26,7 @@ export const AssignmentInput = z.object({
     .max(50),
   helpLevel: HelpLevel,
   allowlist: z
-    .array(AllowlistPattern.transform((p) => p.trim()))
+    .array(AllowlistPattern)
     .min(1, "Allow at least one site")
     .max(20)
     .default(DEFAULT_ALLOWLIST),
