@@ -119,6 +119,10 @@ Requirements: Node 24+, pnpm, a Supabase project, and a [Meta Model API](https:/
    pnpm --filter @asterisk/extension build
    ```
 
+   Click the Asterisk toolbar icon to open the side panel, then join with a class code (the seed's is `QUAD24`). The panel only helps on pages that match the assignment's allowlist (by default, Google Docs).
+
+   To work on the panel UI without reloading the extension, run `pnpm dev:extension` and open http://localhost:5173/src/sidepanel/index.html. This **dev preview** stores the session in `localStorage`, proxies `/api` to the dashboard, and shows a bar where you type a simulated tab URL to test allowlist gating.
+
 ## Eval results
 
 _TBD_ — `pnpm eval` runs ~30 adversarial student prompts against each help level and reports the answer-leak rate.

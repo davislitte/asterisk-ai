@@ -6,6 +6,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@asterisk/web", "dev"],
       "port": 3000
+    },
+    {
+      "name": "extension-preview",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@asterisk/extension", "dev"],
+      "port": 5173
     }
   ]
 }

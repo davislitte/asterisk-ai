@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@theme {
+  --color-accent: oklch(0.52 0.19 275);
+  --color-accent-soft: oklch(0.95 0.03 275);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-white text-sm text-zinc-900 antialiased;
+}
+
+.input {
+  @apply w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 outline-none focus:border-accent focus:ring-2 focus:ring-accent/25;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center gap-1.5 rounded-lg bg-accent px-3 py-2 font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.btn-ghost {
+  @apply inline-flex items-center justify-center rounded-md px-2 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900;
+}
