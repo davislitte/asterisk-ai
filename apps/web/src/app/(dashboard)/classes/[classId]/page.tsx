@@ -6,9 +6,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireTeacher } from "@/server/auth";
 import { getClassForTeacher, listAssignmentsForClass } from "@/server/classes";
+import { LocalDateTime } from "@/components/local-date-time";
 import { JoinCodeCard } from "./join-code-card";
-
-const dateFormat = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" });
 
 export default async function ClassPage({ params }: PageProps<"/classes/[classId]">) {
   const { classId } = await params;
@@ -59,7 +58,12 @@ export default async function ClassPage({ params }: PageProps<"/classes/[classId
                           {a.subject}
                           {" · "}
                           {a.sourceCount} {a.sourceCount === 1 ? "source" : "sources"}
-                          {a.dueAt && <> · Due {dateFormat.format(a.dueAt)}</>}
+                          {a.dueAt && (
+                            <>
+                              {" · Due "}
+                              <LocalDateTime iso={a.dueAt.toISOString()} />
+                            </>
+                          )}
                         </CardDescription>
                       </CardHeader>
                     </Card>

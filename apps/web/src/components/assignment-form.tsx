@@ -7,7 +7,7 @@ import {
   type HelpLevel,
   matchesAllowlist,
 } from "@asterisk/shared";
-import { useState, useSyncExternalStore, useTransition } from "react";
+import { useId, useState, useSyncExternalStore, useTransition } from "react";
 import { toast } from "sonner";
 import {
   type AssignmentFormResult,
@@ -64,6 +64,8 @@ export function AssignmentForm({ mode, initial }: { mode: Mode; initial: Assignm
   const [testUrl, setTestUrl] = useState("");
   const [result, setResult] = useState<AssignmentFormResult>({});
   const [pending, startTransition] = useTransition();
+  // DOM ids must match between server and client renders; list keys never reach the DOM.
+  const uid = useId();
 
   const err = (path: string) => result.fieldErrors?.[path];
 
@@ -138,7 +140,7 @@ export function AssignmentForm({ mode, initial }: { mode: Mode; initial: Assignm
               <span className="pt-1.5 font-mono text-sm text-muted-foreground">{i + 1}.</span>
               <Field label="Problem" error={err(`problems.${i}.prompt`)}>
                 <Textarea
-                  id={`problem-${p.key}`}
+                  id={`${uid}-problem-${i}`}
                   rows={2}
                   value={p.value.prompt}
                   onChange={(e) =>
@@ -150,7 +152,7 @@ export function AssignmentForm({ mode, initial }: { mode: Mode; initial: Assignm
               </Field>
               <Field label="Answer key (teacher only)" error={err(`problems.${i}.answerKey`)}>
                 <Textarea
-                  id={`answer-${p.key}`}
+                  id={`${uid}-answer-${i}`}
                   rows={2}
                   value={p.value.answerKey ?? ""}
                   onChange={(e) =>

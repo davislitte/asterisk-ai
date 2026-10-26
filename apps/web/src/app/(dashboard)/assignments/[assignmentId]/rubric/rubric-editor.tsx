@@ -1,7 +1,7 @@
 "use client";
 
 import type { RubricCriterionInput, RubricLevel } from "@asterisk/shared";
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,6 +49,8 @@ export function RubricEditor({ assignmentId, initial }: { assignmentId: string; 
   );
   const [result, setResult] = useState<SaveRubricResult>({});
   const [saving, startSaving] = useTransition();
+  // DOM ids must match between server and client renders; list keys never reach the DOM.
+  const uid = useId();
   const err = (path: string) => result.fieldErrors?.[path];
 
   const totalPoints = criteria.reduce(
@@ -114,9 +116,9 @@ export function RubricEditor({ assignmentId, initial }: { assignmentId: string; 
           <CardContent className="flex flex-col gap-4 pt-6">
             <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor={`criterion-${c.key}`}>Criterion {ci + 1}</Label>
+                <Label htmlFor={`${uid}-criterion-${ci}`}>Criterion {ci + 1}</Label>
                 <Input
-                  id={`criterion-${c.key}`}
+                  id={`${uid}-criterion-${ci}`}
                   value={c.value.name}
                   onChange={(e) => updateCriterion(c.key, { name: e.target.value })}
                   placeholder="e.g. Finds all roots"
@@ -136,9 +138,9 @@ export function RubricEditor({ assignmentId, initial }: { assignmentId: string; 
               </Button>
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor={`criterion-desc-${c.key}`}>What it measures (optional)</Label>
+              <Label htmlFor={`${uid}-criterion-desc-${ci}`}>What it measures (optional)</Label>
               <Textarea
-                id={`criterion-desc-${c.key}`}
+                id={`${uid}-criterion-desc-${ci}`}
                 rows={2}
                 value={c.value.description}
                 onChange={(e) => updateCriterion(c.key, { description: e.target.value })}
