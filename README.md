@@ -31,6 +31,7 @@ Every runtime AI call goes to a Meta model, through one provider module (`packag
 | Feature | Model | Status |
 |---|---|---|
 | Guided tutoring, rubric feedback, question generation, grading | Muse Spark (`muse-spark-1.3`, Meta Model API) | Provider + smoke test written; not yet run (awaiting API credits) |
+| Import a pasted/uploaded rubric into structured criteria | Muse Spark (structured output) | Built; tested only against the `FAKE` stub so far |
 | District-hosted mode | Muse Spark Open via Baseten / Modal | Config switch stubbed |
 | Photo of handwritten work → feedback | Muse Spark (vision) | _TBD_ |
 | Split a worksheet photo into problems | SAM 3.1 | _TBD_ |
@@ -53,7 +54,9 @@ Nothing produced by `FAKE` is shown in the demo or counted in eval results.
 
 ## Guardrails
 
-_TBD_ — answer-leak check on every response, grounding to teacher sources, off-topic/jailbreak classification, never rewriting student work.
+- **Answer keys never reach students.** Teachers can enter an answer key per problem so Asterisk can check its own replies for leaks. Student-facing payloads are built field by field by `toStudentAssignment()` ([`packages/shared/src/student.ts`](packages/shared/src/student.ts)) and validated against a strict schema. Every student route responds through `studentJson()`, which refuses any payload containing an answer key. A test fails the build if a route under `app/api/student/` skips either step.
+- **Teacher-supplied URLs** are fetched behind an SSRF guard: public IPs only, re-checked on every redirect, with size and time limits.
+- _TBD_ — answer-leak check on every response, grounding to teacher sources, off-topic/jailbreak classification, never rewriting student work.
 
 ## Student privacy
 
@@ -80,7 +83,7 @@ Requirements: Node 24+, pnpm, a Supabase project, and a [Meta Model API](https:/
    pnpm install
    ```
 
-2. Copy `.env.example` to `.env.local` at the repo root and fill in `MODEL_API_KEY`, `DATABASE_URL` and `DATABASE_MIGRATION_URL`. In Supabase, find both connection strings under **Connect**: use the transaction pooler for `DATABASE_URL` and the session pooler for migrations.
+2. Copy `.env.example` to `.env.local` at the repo root and fill in `MODEL_API_KEY`, `DATABASE_URL`, `DATABASE_MIGRATION_URL`, `TEACHER_PASSCODE` and `SESSION_SECRET` (plus `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to keep original uploads). In Supabase, find both connection strings under **Connect**: use the transaction pooler for `DATABASE_URL` and the session pooler for migrations.
 
 3. Create the tables and the demo class (join code `QUAD24`):
 
@@ -98,10 +101,16 @@ Requirements: Node 24+, pnpm, a Supabase project, and a [Meta Model API](https:/
    pnpm ai:smoke
    ```
 
-5. Run the teacher dashboard:
+5. Run the teacher dashboard at http://localhost:3000 and sign in with `TEACHER_PASSCODE`:
 
    ```bash
    pnpm dev
+   ```
+
+   Run the tests with:
+
+   ```bash
+   pnpm test
    ```
 
 6. Build the extension, then load `apps/extension/dist` as an unpacked extension in `chrome://extensions`:
