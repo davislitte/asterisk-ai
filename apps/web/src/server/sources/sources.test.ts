@@ -19,6 +19,13 @@ describe("source extraction", () => {
     assert.match(src.sections[1]!.text, /each factor equal to zero/);
   });
 
+  it("leaves the caller's PDF bytes intact for upload", async () => {
+    const pdf = makePdf(["Some text."]);
+    const size = pdf.byteLength;
+    await importFile("a.pdf", "application/pdf", pdf);
+    assert.equal(pdf.byteLength, size);
+  });
+
   it("extracts DOCX text into sections at headings", async () => {
     const docx = makeDocx([
       { heading: "Zero product property" },

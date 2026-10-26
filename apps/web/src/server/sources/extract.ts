@@ -27,7 +27,9 @@ export function normalizeText(text: string): string {
 export async function extractPdf(bytes: Uint8Array): Promise<Section[]> {
   let pages: string[];
   try {
-    const pdf = await getDocumentProxy(bytes);
+    // pdf.js transfers (detaches) the buffer it's given; parse a copy so the
+    // caller can still upload the original bytes.
+    const pdf = await getDocumentProxy(bytes.slice());
     ({ text: pages } = await extractText(pdf, { mergePages: false }));
   } catch {
     throw new ExtractionError("That file doesn't look like a valid PDF.");
