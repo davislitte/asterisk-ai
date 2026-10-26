@@ -11,6 +11,13 @@ export const HELP_LEVEL_LABELS: Record<HelpLevel, string> = {
   4: "Worked example",
 };
 
+export const HELP_LEVEL_DESCRIPTIONS: Record<HelpLevel, string> = {
+  1: "Asks guiding questions only. Never states facts that aren't already in the student's work.",
+  2: "Guiding questions, plus points the student to the relevant section of your sources.",
+  3: "Explains the concept using a different example. Never the assignment's answer.",
+  4: "Shows a full worked example of a parallel problem. Never the assigned one.",
+};
+
 export const SourceKind = z.enum(["pdf", "docx", "text", "url"]);
 export type SourceKind = z.infer<typeof SourceKind>;
 
