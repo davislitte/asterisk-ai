@@ -1,0 +1,25 @@
+{
+  "name": "asterisk-ai",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.15.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @asterisk/web dev",
+    "dev:extension": "pnpm --filter @asterisk/extension dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "db:generate": "pnpm --filter @asterisk/web db:generate",
+    "db:migrate": "pnpm --filter @asterisk/web db:migrate",
+    "db:seed": "pnpm --filter @asterisk/web db:seed",
+    "ai:smoke": "pnpm --filter @asterisk/ai smoke"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}
