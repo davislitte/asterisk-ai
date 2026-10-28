@@ -30,14 +30,16 @@ Every runtime AI call goes to a Meta model, through one provider module (`packag
 
 | Feature | Model | Status |
 |---|---|---|
-| Guided tutoring, rubric feedback, question generation, grading | Muse Spark (`muse-spark-1.3`, Meta Model API) | Provider + smoke test written; not yet run (awaiting API credits) |
-| Import a pasted/uploaded rubric into structured criteria | Muse Spark (structured output) | Built; tested only against the `FAKE` stub so far |
+| Guided tutoring with citations, at 4 help levels | Muse Spark (`muse-spark-1.3`, Meta Model API) | ✅ Live |
+| Rubric pre-check feedback on a student's draft | Muse Spark (structured output) | ✅ Live |
+| Question generation, comprehension grading | Muse Spark | _TBD_ |
+| Import a pasted/uploaded rubric into structured criteria | Muse Spark (structured output) | Built; not yet tried on Muse Spark |
 | District-hosted mode | Muse Spark Open via Baseten / Modal | Config switch stubbed |
 | Photo of handwritten work → feedback | Muse Spark (vision) | _TBD_ |
 | Split a worksheet photo into problems | SAM 3.1 | _TBD_ |
 | Spoken comprehension check | Muse Voice Transcribe → Muse Spark | _TBD_ |
 | Class misconception report + reteach plan | Muse Spark, multi-step tool-calling agent | _TBD_ |
-| Off-topic / jailbreak classifier, answer-leak check | Muse Spark (structured output) | Built; tested only against the `FAKE` stub so far |
+| Off-topic / jailbreak classifier, answer-leak check | Muse Spark (structured output) | ✅ Live; measured by `pnpm eval` below |
 
 We use `muse-spark-1.3`, not the cheaper `-contributor` variant, because that variant uses request data for training and our users are minors.
 
@@ -149,7 +151,20 @@ Requirements: Node 24+, pnpm, a Supabase project, and a [Meta Model API](https:/
 
 A separate judge prompt, distinct from the in-app leak check, grades both the raw tutor draft and the final reply. The headline number is the raw leak rate versus the guarded leak rate. The eval also reports classifier recall. Results are saved to `packages/ai/eval/results/`.
 
-_Results pending: the eval refuses to report leak rates on the `FAKE` stub, and Meta API credits haven't arrived yet._
+**Results** (`muse-spark-1.3`, Oct 28, 2026, [`latest.md`](packages/ai/eval/results/latest.md)):
+
+| Help level | Runs | Raw tutor leak rate | Guarded leak rate | Redrafted | Fallback |
+|---|---|---|---|---|---|
+| 1 · Hints only | 34 | 0.0% | 0.0% | 0 | 0 |
+| 2 · Socratic | 34 | 0.0% | 0.0% | 0 | 0 |
+| 3 · Explain concepts | 34 | 0.0% | 0.0% | 0 | 0 |
+| 4 · Worked example | 34 | 0.0% | 0.0% | 0 | 0 |
+| **All** | **136** | **0.0%** | **0.0%** | 0 | 0 |
+
+- **No leaks:** Asterisk didn't give away an answer in any of the 136 adversarial runs. That covers every help level, including level 4, which shows full worked examples. A second full run reproduced 0/136.
+- **The graders were checked first.** Every run starts with 12 control replies, 8 written to leak and 4 written to be safe. Both the eval judge and the in-app leak check caught **8/8** leaks and wrongly flagged **0/4** safe replies. So the 0% isn't a judge that can't see leaks.
+- **Classifier recall:** asked-for-the-answer 98.2%, bypass attempts 97.9%, off-topic 100%. No genuine question was wrongly flagged as answer-seeking.
+- **What this shows and doesn't show:** the tutor prompt alone held on this set, so the leak guard never had to step in. It is a second line of defence for attacks this set doesn't cover. The set is one subject (quadratics) and 34 messages written for this project, not an independent benchmark.
 
 ## Built during the hackathon
 

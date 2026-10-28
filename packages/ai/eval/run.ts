@@ -19,8 +19,9 @@ import { TUTOR_PROMPT_VERSION } from "../prompts/tutor";
 import { completeJson } from "../provider/client";
 import { resolveProviderConfig } from "../provider/config";
 import { setModelCallLogger } from "../provider/logging";
-import { guardedTutorReply } from "../tasks/guarded-tutor";
+import { checkLeak, guardedTutorReply } from "../tasks/guarded-tutor";
 import { type EvalCase, EVAL_CASES } from "./cases";
+import { GRADER_CONTROLS } from "./controls";
 import { EVAL_ANSWER_KEYS, EVAL_PROBLEMS, EVAL_SOURCES, evalAssignment } from "./fixture";
 
 const { values: args } = parseArgs({
@@ -29,6 +30,7 @@ const { values: args } = parseArgs({
     limit: { type: "string" },
     concurrency: { type: "string", default: "4" },
     "allow-fake": { type: "boolean", default: false },
+    "controls-only": { type: "boolean", default: false },
   },
 });
 
@@ -48,10 +50,17 @@ const concurrency = Math.max(1, Number(args.concurrency));
 
 let modelCalls = 0;
 let failedCalls = 0;
+let tokensIn = 0;
+let tokensOut = 0;
 setModelCallLogger((e) => {
   modelCalls++;
   if (!e.ok) failedCalls++;
+  tokensIn += e.tokensIn ?? 0;
+  tokensOut += e.tokensOut ?? 0;
 });
+// muse-spark-1.3 list price per million tokens (dev.meta.ai/models/muse-spark), for a rough cost line.
+const USD_PER_M_IN = 1.25;
+const USD_PER_M_OUT = 4.25;
 if (isFake) console.warn = () => {}; // silence per-call stub warnings; the banner below says it all
 
 interface Row {
@@ -138,12 +147,42 @@ async function pool<T, R>(items: T[], size: number, fn: (item: T) => Promise<R>)
 
 const pct = (n: number, d: number) => (d === 0 ? "—" : `${((100 * n) / d).toFixed(1)}%`);
 
+/** Do the graders catch replies written to leak, and pass replies written to be safe? */
+async function runControls() {
+  const results = await pool(GRADER_CONTROLS, concurrency, async (c) => {
+    const [judged, checked] = await Promise.all([
+      judge(c.studentMessage, c.reply),
+      checkLeak(EVAL_PROBLEMS, c.studentMessage, c.reply),
+    ]);
+    return { ...c, judge: judged.leaks, leakCheck: checked.leaks };
+  });
+  const leaky = results.filter((r) => r.leaks);
+  const safe = results.filter((r) => !r.leaks);
+  const line = (name: string, key: "judge" | "leakCheck") =>
+    `${name} caught ${leaky.filter((r) => r[key]).length}/${leaky.length} written-to-leak replies, ` +
+    `falsely flagged ${safe.filter((r) => r[key]).length}/${safe.length} safe ones`;
+  const misses = results
+    .filter((r) => r.judge !== r.leaks || r.leakCheck !== r.leaks)
+    .map((r) => `${r.id} (judge: ${r.judge}, leak check: ${r.leakCheck}, expected: ${r.leaks})`);
+  return {
+    lines: [`Eval judge ${line("", "judge").trim()}.`, `In-app leak check ${line("", "leakCheck").trim()}.`],
+    misses,
+    judgeSound: results.every((r) => r.judge === r.leaks),
+  };
+}
+
 async function main() {
   const jobs = levels.flatMap((level) => cases.map((c) => ({ c, level })));
   console.info(
     `${isFake ? "⚠️  FAKE STUB RUN — NOT A REAL RESULT\n" : ""}Provider ${config.provider} · model ${config.model} · ${cases.length} cases × levels ${levels.join(",")} = ${jobs.length} runs`,
   );
   const started = Date.now();
+  console.info("Grader controls:");
+  const controls = await runControls();
+  for (const l of controls.lines) console.info(`  ${l}`);
+  for (const m of controls.misses) console.info(`  ✗ ${m}`);
+  if (args["controls-only"]) return;
+  console.info("Adversarial cases:");
   const rows = await pool(jobs, concurrency, ({ c, level }) => runOne(c, level));
   const ok = rows.filter((r) => !r.error);
 
@@ -173,7 +212,9 @@ async function main() {
     ...lines,
     "",
     `Classifier recall: ${recall("answer_seeking")} · ${recall("jailbreak")} · ${recall("off_topic")} · control questions wrongly flagged answer-seeking: ${falseAnswerSeeking}`,
+    `Grader controls: ${controls.lines.join(" ")}${controls.misses.length ? ` Misses: ${controls.misses.join("; ")}.` : ""}`,
     `Errors: ${rows.length - ok.length} runs · ${modelCalls} model calls (${failedCalls} failed) · ${((Date.now() - started) / 1000).toFixed(0)}s`,
+    `Tokens: ${tokensIn.toLocaleString("en-US")} in / ${tokensOut.toLocaleString("en-US")} out (incl. reasoning) · ≈ $${((tokensIn * USD_PER_M_IN + tokensOut * USD_PER_M_OUT) / 1e6).toFixed(2)} at list price`,
   ].join("\n");
 
   console.info(`\n${summary}\n`);
