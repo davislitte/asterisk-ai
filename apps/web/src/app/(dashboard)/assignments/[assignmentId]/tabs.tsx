@@ -11,6 +11,7 @@ export function AssignmentTabs({ assignmentId }: { assignmentId: string }) {
     { href: base, label: "Details" },
     { href: `${base}/sources`, label: "Sources" },
     { href: `${base}/rubric`, label: "Rubric" },
+    { href: `${base}/questions`, label: "Check questions" },
     { href: `${base}/monitor`, label: "Monitor" },
   ];
 

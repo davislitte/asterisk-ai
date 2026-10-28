@@ -230,6 +230,22 @@ export const comprehensionAnswers = pgTable(
   (t) => [index("comprehension_answers_question_student_idx").on(t.questionId, t.studentId)],
 ).enableRLS();
 
+/** S8: a student marked the assignment complete (after the comprehension check, if enabled). */
+export const submissions = pgTable(
+  "submissions",
+  {
+    id: id(),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => students.id, { onDelete: "cascade" }),
+    assignmentId: uuid("assignment_id")
+      .notNull()
+      .references(() => assignments.id, { onDelete: "cascade" }),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("submissions_student_assignment_idx").on(t.studentId, t.assignmentId)],
+).enableRLS();
+
 export const reports = pgTable(
   "reports",
   {

@@ -27,6 +27,26 @@ export const FAKE_FIXTURES: Record<string, Fixture> = {
     if (/\b(minecraft|fortnite|roblox|tiktok|weather|football|crush)\b/.test(msg)) flags.push("off_topic");
     return { flags, reason: `[FAKE MODEL] Keyword match: ${flags.join(", ") || "none"}.` };
   },
+  "questions.generate": (messages) => {
+    const count = Number(/exactly (\d+) short questions/.exec(text(messages[0]))?.[1] ?? 3);
+    return {
+      questions: Array.from({ length: count }, (_, i) => ({
+        text: `[FAKE MODEL] Canned comprehension question ${i + 1}. Not generated from your notes.`,
+        checks: "[FAKE MODEL] canned",
+      })),
+    };
+  },
+  // Length heuristic, NOT a grader.
+  "comprehension.grade": (messages) => {
+    const answer = between(text(messages.at(-1)), "answer").trim();
+    const words = answer.split(/\s+/).filter(Boolean).length;
+    const understanding = words === 0 ? "none" : words < 6 ? "partial" : words < 25 ? "solid" : "strong";
+    return {
+      understanding,
+      rationale: `[FAKE MODEL] Graded by answer length (${words} words), not understanding.`,
+      misconception: "",
+    };
+  },
   // Picks each criterion's second-highest level. NOT a grader.
   "rubric.check": (messages) => {
     const instructions = text(messages.find((m) => m.role === "instructions"));

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AllowlistPattern, AssignedProblem, DEFAULT_ALLOWLIST, HelpLevel, RubricLevels } from "./domain";
+import { AllowlistPattern, AssignedProblem, DEFAULT_ALLOWLIST, HelpLevel, QuestionOrigin, RubricLevels } from "./domain";
 
 /** Inputs accepted by the teacher dashboard's server actions. */
 
@@ -45,6 +45,21 @@ export const RubricInput = z.object({
   criteria: z.array(RubricCriterionInput).min(1, "Add at least one criterion").max(20),
 });
 export type RubricInput = z.infer<typeof RubricInput>;
+
+export const CheckQuestionsInput = z.object({
+  questions: z
+    .array(
+      z.object({
+        /** Existing question id, or absent for a new one. */
+        id: z.uuid().optional(),
+        text: z.string().trim().min(1, "Questions can't be empty").max(500),
+        approved: z.boolean(),
+        origin: QuestionOrigin,
+      }),
+    )
+    .max(10, "Use at most 10 questions"),
+});
+export type CheckQuestionsInput = z.infer<typeof CheckQuestionsInput>;
 
 export const PastedTextSourceInput = z.object({
   title: z.string().trim().min(1, "Give the source a title").max(200),

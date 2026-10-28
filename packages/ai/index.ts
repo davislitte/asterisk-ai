@@ -24,6 +24,8 @@ export {
 } from "./tasks/guarded-tutor";
 export type { RubricCheckCriterion, RubricCheckInput } from "./prompts/rubric-check";
 export { type RubricCheckCriterionResult, type RubricCheckResultData, rubricCheck } from "./tasks/rubric-check";
+export { UNDERSTANDING_LEVELS } from "./prompts/comprehension";
+export { type GradedAnswer, generateCheckQuestions, gradeComprehensionAnswer } from "./tasks/comprehension";
 export {
   type ModelCallLogEntry,
   type ModelCallLogger,
