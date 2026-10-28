@@ -16,7 +16,11 @@ export default defineManifest(({ mode }) => ({
   name: "Asterisk AI",
   description: "Your teacher's AI study helper. Works only where your teacher allows it.",
   version: pkg.version,
-  action: { default_title: "Open Asterisk" },
+  icons: { 16: "icons/icon-16.png", 32: "icons/icon-32.png", 48: "icons/icon-48.png", 128: "icons/icon-128.png" },
+  action: {
+    default_title: "Open Asterisk",
+    default_icon: { 16: "icons/icon-16.png", 32: "icons/icon-32.png" },
+  },
   side_panel: { default_path: "src/sidepanel/index.html" },
   background: { service_worker: "src/background.ts", type: "module" },
   // `tabs` lets the panel read the active tab's URL to enforce the teacher's allowlist.

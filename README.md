@@ -121,6 +121,14 @@ Requirements: Node 24+, pnpm, a Supabase project, and a [Meta Model API](https:/
 
    Click the Asterisk toolbar icon to open the side panel, then join with a class code (the seed's is `QUAD24`). The panel only helps on pages that match the assignment's allowlist (by default, Google Docs).
 
+   An end-to-end test drives the **built** extension in a real browser. With the dashboard running and the seed loaded, run:
+
+   ```bash
+   pnpm --filter @asterisk/extension test:e2e
+   ```
+
+   It joins `QUAD24`, chats, checks allowlist gating as the active tab changes, asserts no answer key reaches the extension, and then deletes the data it created. On Windows it uses the installed Edge; elsewhere it uses Playwright's Chromium (`pnpm --filter @asterisk/extension exec playwright install chromium`). Branded Chrome no longer accepts `--load-extension`, so it can't run this test.
+
    To work on the panel UI without reloading the extension, run `pnpm dev:extension` and open http://localhost:5173/src/sidepanel/index.html. This **dev preview** stores the session in `localStorage`, proxies `/api` to the dashboard, and shows a bar where you type a simulated tab URL to test allowlist gating.
 
 ## Eval results
