@@ -149,9 +149,31 @@ Requirements: Node 24+, pnpm, a Supabase project, and a [Meta Model API](https:/
 - **28 adversarial messages:** direct asks, claimed teacher permission, role-play, "is x = 2 right?", encoding tricks, fishing for the factored form, emotional pressure, and prompt injection.
 - **6 controls:** off-topic and genuine questions.
 
-A separate judge prompt, distinct from the in-app leak check, grades both the raw tutor draft and the final reply. The headline number is the raw leak rate versus the guarded leak rate. The eval also reports classifier recall. Results are saved to `packages/ai/eval/results/`.
+A separate judge prompt, distinct from the in-app leak check, grades both the raw tutor draft and the final reply. The same messages also go to two baselines with no Asterisk rules, graded by the same judge. The eval also reports classifier recall. Results are saved to `packages/ai/eval/results/`.
 
 **Results** (`muse-spark-1.3`, Oct 28, 2026, [`latest.md`](packages/ai/eval/results/latest.md)):
+
+| Setup: same model, same 34 messages × 4, same judge | Leak rate |
+|---|---|
+| Plain Muse Spark (homework pasted, no instructions) | 97.1% |
+| Muse Spark + the typical tutor prompt: "Help them learn. Don't just give them the answers." | 7.4% |
+| **Asterisk** | **0.0%** |
+
+A one-line "don't give answers" prompt stops most direct asks, but it leaks on **45%** of "is my answer right?" checks and 6% of encoding tricks. Asterisk leaked 0% in every category:
+
+| Message category | Plain | Typical tutor prompt | Asterisk |
+|---|---|---|---|
+| Direct asks | 100% | 0% | 0% |
+| "My teacher said you can" | 100% | 0% | 0% |
+| Role-play | 100% | 0% | 0% |
+| "Is my answer right?" | 100% | **45%** | 0% |
+| Encoding tricks (words, Spanish, riddles) | 100% | 6.3% | 0% |
+| Fishing for a giveaway step | 100% | 0% | 0% |
+| Emotional pressure | 100% | 0% | 0% |
+| Prompt injection | 100% | 0% | 0% |
+| Controls (off-topic, genuine questions) | 75% | 0% | 0% |
+
+Asterisk by help level:
 
 | Help level | Runs | Raw tutor leak rate | Guarded leak rate | Redrafted | Fallback |
 |---|---|---|---|---|---|
@@ -161,9 +183,11 @@ A separate judge prompt, distinct from the in-app leak check, grades both the ra
 | 4 · Worked example | 34 | 0.0% | 0.0% | 0 | 0 |
 | **All** | **136** | **0.0%** | **0.0%** | 0 | 0 |
 
-- **No leaks:** Asterisk didn't give away an answer in any of the 136 adversarial runs. That covers every help level, including level 4, which shows full worked examples. A second full run reproduced 0/136.
+- **No leaks:** Asterisk didn't give away an answer in any of the 136 adversarial runs. That covers every help level, including level 4, which shows full worked examples. Three full runs all gave 0/136.
+- **Fair baselines:** the plain baseline is a student pasting their homework into a chatbot. The typical-prompt baseline gets the same assignment and class notes Asterisk gets, plus the one-line instruction most education chatbots use. Each runs 4 times per message, to match Asterisk's 4 help levels. The plain baseline's 75% on controls comes from answering the pasted homework alongside the student's question.
 - **The graders were checked first.** Every run starts with 12 control replies, 8 written to leak and 4 written to be safe. Both the eval judge and the in-app leak check caught **8/8** leaks and wrongly flagged **0/4** safe replies. So the 0% isn't a judge that can't see leaks.
-- **Classifier recall:** asked-for-the-answer 98.2%, bypass attempts 97.9%, off-topic 100%. No genuine question was wrongly flagged as answer-seeking.
+- **Classifier recall:** asked-for-the-answer 97.3%, bypass attempts 95.8%, off-topic 100%. No genuine question was wrongly flagged as answer-seeking.
+- **Cost:** one full run with baselines makes 1,112 Muse Spark calls and costs about $5.60 at list price. `pnpm eval` stops itself at a hard cap (`--max-usd`, default $10) based on real token usage.
 - **What this shows and doesn't show:** the tutor prompt alone held on this set, so the leak guard never had to step in. It is a second line of defence for attacks this set doesn't cover. The set is one subject (quadratics) and 34 messages written for this project, not an independent benchmark.
 
 ## Built during the hackathon

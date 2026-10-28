@@ -6,17 +6,24 @@
  * student would see. Reports raw vs guarded leak rate per help level, guard
  * actions, and classifier recall.
  *
+ * Baselines: the same messages sent to the same model without Asterisk's
+ * rules (plain chatbot, and a typical "don't just give the answers" tutor
+ * prompt), graded by the same judge, to show what the rules add.
+ *
  * Options: --levels 1,2,3,4   --limit N   --concurrency N   --allow-fake
+ *          --skip-baselines   --baseline-repeats N (default 4)   --controls-only
+ *          --max-usd N (default 10): hard cap from real token usage; stops starting new runs
  * Refuses to run on the FAKE stub unless --allow-fake, and never saves FAKE results.
  */
 import type { HelpLevel, MessageFlag } from "@asterisk/shared";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
+import { BASELINE_PROMPT_VERSION, type BaselineKind, baselinePromptV1 } from "../prompts/baseline";
 import { EVAL_JUDGE_PROMPT_VERSION, evalJudgePromptV1 } from "../prompts/eval-judge";
 import { CLASSIFY_PROMPT_VERSION, LEAK_CHECK_PROMPT_VERSION, LeakVerdict } from "../prompts/guard";
 import { TUTOR_PROMPT_VERSION } from "../prompts/tutor";
-import { completeJson } from "../provider/client";
+import { complete, completeJson } from "../provider/client";
 import { resolveProviderConfig } from "../provider/config";
 import { setModelCallLogger } from "../provider/logging";
 import { checkLeak, guardedTutorReply } from "../tasks/guarded-tutor";
@@ -31,6 +38,10 @@ const { values: args } = parseArgs({
     concurrency: { type: "string", default: "4" },
     "allow-fake": { type: "boolean", default: false },
     "controls-only": { type: "boolean", default: false },
+    "skip-baselines": { type: "boolean", default: false },
+    "baseline-repeats": { type: "string", default: "4" },
+    // Hard spending cap per eval run, from real token usage as it accumulates.
+    "max-usd": { type: "string", default: "10" },
   },
 });
 
@@ -61,6 +72,11 @@ setModelCallLogger((e) => {
 // muse-spark-1.3 list price per million tokens (dev.meta.ai/models/muse-spark), for a rough cost line.
 const USD_PER_M_IN = 1.25;
 const USD_PER_M_OUT = 4.25;
+const MAX_USD = Number(args["max-usd"]);
+const spentUsd = () => (tokensIn * USD_PER_M_IN + tokensOut * USD_PER_M_OUT) / 1e6;
+let budgetHit = false;
+
+class BudgetExceededError extends Error {}
 if (isFake) console.warn = () => {}; // silence per-call stub warnings; the banner below says it all
 
 interface Row {
@@ -127,6 +143,39 @@ async function runOne(c: EvalCase, helpLevel: HelpLevel): Promise<Row> {
   }
 }
 
+interface BaselineRow {
+  kind: BaselineKind;
+  caseId: string;
+  category: EvalCase["category"];
+  repeat: number;
+  message: string;
+  leaked: boolean;
+  reply: string;
+  judgeReason: string;
+  error?: string;
+}
+
+const BASELINE_LABEL: Record<BaselineKind, string> = {
+  plain: "Plain Muse Spark (homework pasted, no instructions)",
+  naive: "Muse Spark + typical tutor prompt (\"Don't just give them the answers\")",
+};
+
+async function runBaseline(kind: BaselineKind, c: EvalCase, repeat: number): Promise<BaselineRow> {
+  const base = { kind, caseId: c.id, category: c.category, repeat, message: c.message };
+  try {
+    const { helpLevel: _unused, ...assignment } = evalAssignment(2);
+    const out = await complete({
+      purpose: `eval.baseline.${kind}`,
+      messages: baselinePromptV1(kind, { assignment, sources: EVAL_SOURCES, history: c.history ?? [], message: c.message }),
+      reasoningEffort: "low",
+    });
+    const verdict = await judge(c.message, out.text);
+    return { ...base, leaked: verdict.leaks, reply: out.text, judgeReason: verdict.reason };
+  } catch (err) {
+    return { ...base, leaked: false, reply: "", judgeReason: "", error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 async function pool<T, R>(items: T[], size: number, fn: (item: T) => Promise<R>): Promise<R[]> {
   const results: R[] = new Array(items.length);
   let next = 0;
@@ -134,6 +183,12 @@ async function pool<T, R>(items: T[], size: number, fn: (item: T) => Promise<R>)
   await Promise.all(
     Array.from({ length: Math.min(size, items.length) }, async () => {
       while (next < items.length) {
+        // Stop starting new work once the budget is spent; in-flight runs finish.
+        if (spentUsd() >= MAX_USD) {
+          if (!budgetHit) console.warn(`\n⛔ Budget cap $${MAX_USD} reached ($${spentUsd().toFixed(2)} spent). Stopping.`);
+          budgetHit = true;
+          throw new BudgetExceededError();
+        }
         const i = next++;
         results[i] = await fn(items[i]!);
         done++;
@@ -186,6 +241,17 @@ async function main() {
   const rows = await pool(jobs, concurrency, ({ c, level }) => runOne(c, level));
   const ok = rows.filter((r) => !r.error);
 
+  let baselineRows: BaselineRow[] = [];
+  if (!args["skip-baselines"]) {
+    const repeats = Math.max(1, Number(args["baseline-repeats"]));
+    const baselineJobs = (["plain", "naive"] as const).flatMap((kind) =>
+      cases.flatMap((c) => Array.from({ length: repeats }, (_, repeat) => ({ kind, c, repeat }))),
+    );
+    console.info(`Baselines (same messages, no Asterisk rules, ×${repeats}):`);
+    baselineRows = await pool(baselineJobs, concurrency, ({ kind, c, repeat }) => runBaseline(kind, c, repeat));
+  }
+  const baselineOk = baselineRows.filter((r) => !r.error);
+
   const lines: string[] = [];
   lines.push("| Help level | Runs | Raw tutor leak rate | Guarded leak rate | Redrafted | Fallback |");
   lines.push("|---|---|---|---|---|---|");
@@ -205,15 +271,48 @@ async function main() {
   };
   const falseAnswerSeeking = ok.filter((r) => r.category === "control" && r.flags.includes("answer_seeking")).length;
 
+  const comparison: string[] = [];
+  if (baselineOk.length) {
+    const rate = (kind: BaselineKind) => {
+      const r = baselineOk.filter((x) => x.kind === kind);
+      return { n: r.length, pct: pct(r.filter((x) => x.leaked).length, r.length) };
+    };
+    const plain = rate("plain");
+    const naive = rate("naive");
+    comparison.push(
+      "| Setup (same model, same messages, same judge) | Runs | Leak rate |",
+      "|---|---|---|",
+      `| ${BASELINE_LABEL.plain} | ${plain.n} | ${plain.pct} |`,
+      `| ${BASELINE_LABEL.naive} | ${naive.n} | ${naive.pct} |`,
+      `| Asterisk tutor prompt alone (before the leak guard) | ${ok.length} | ${pct(ok.filter((x) => x.rawLeaked).length, ok.length)} |`,
+      `| **Asterisk: tutor + leak guard (what students see)** | ${ok.length} | **${pct(ok.filter((x) => x.finalLeaked).length, ok.length)}** |`,
+      "",
+      "| Message category | Plain | Typical tutor prompt | Asterisk |",
+      "|---|---|---|---|",
+      ...[...new Set(EVAL_CASES.map((c) => c.category))]
+        .filter((cat) => ok.some((r) => r.category === cat))
+        .map((cat) => {
+          const b = (kind: BaselineKind) => {
+            const r = baselineOk.filter((x) => x.kind === kind && x.category === cat);
+            return pct(r.filter((x) => x.leaked).length, r.length);
+          };
+          const a = ok.filter((x) => x.category === cat);
+          return `| ${cat} | ${b("plain")} | ${b("naive")} | ${pct(a.filter((x) => x.finalLeaked).length, a.length)} |`;
+        }),
+      "",
+    );
+  }
+
   const summary = [
     `Asterisk answer-leak eval · ${new Date().toISOString().slice(0, 10)} · ${config.provider} ${config.model}`,
-    `Prompts: ${TUTOR_PROMPT_VERSION}, ${LEAK_CHECK_PROMPT_VERSION}, ${CLASSIFY_PROMPT_VERSION}; judge ${EVAL_JUDGE_PROMPT_VERSION}`,
+    `Prompts: ${TUTOR_PROMPT_VERSION}, ${LEAK_CHECK_PROMPT_VERSION}, ${CLASSIFY_PROMPT_VERSION}, ${BASELINE_PROMPT_VERSION}; judge ${EVAL_JUDGE_PROMPT_VERSION}`,
     "",
+    ...comparison,
     ...lines,
     "",
     `Classifier recall: ${recall("answer_seeking")} · ${recall("jailbreak")} · ${recall("off_topic")} · control questions wrongly flagged answer-seeking: ${falseAnswerSeeking}`,
     `Grader controls: ${controls.lines.join(" ")}${controls.misses.length ? ` Misses: ${controls.misses.join("; ")}.` : ""}`,
-    `Errors: ${rows.length - ok.length} runs · ${modelCalls} model calls (${failedCalls} failed) · ${((Date.now() - started) / 1000).toFixed(0)}s`,
+    `Errors: ${rows.length - ok.length + baselineRows.length - baselineOk.length} runs · ${modelCalls} model calls (${failedCalls} failed) · ${((Date.now() - started) / 1000).toFixed(0)}s`,
     `Tokens: ${tokensIn.toLocaleString("en-US")} in / ${tokensOut.toLocaleString("en-US")} out (incl. reasoning) · ≈ $${((tokensIn * USD_PER_M_IN + tokensOut * USD_PER_M_OUT) / 1e6).toFixed(2)} at list price`,
   ].join("\n");
 
@@ -231,12 +330,18 @@ async function main() {
   const dir = path.join(import.meta.dirname, "results");
   await mkdir(dir, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  await writeFile(path.join(dir, `${stamp}-${config.provider}.json`), JSON.stringify({ summary, config: { provider: config.provider, model: config.model }, rows }, null, 2));
+  await writeFile(path.join(dir, `${stamp}-${config.provider}.json`), JSON.stringify({ summary, config: { provider: config.provider, model: config.model }, rows, baselineRows }, null, 2));
   await writeFile(path.join(dir, "latest.md"), `${summary}\n`);
   console.info(`Saved eval/results/${stamp}-${config.provider}.json and eval/results/latest.md`);
 }
 
 main().catch((err) => {
-  console.error("Eval failed:", err instanceof Error ? err.message : err);
+  if (err instanceof BudgetExceededError) {
+    console.error(
+      `Eval stopped at its $${MAX_USD} budget cap after ${modelCalls} calls (≈ $${spentUsd().toFixed(2)}). No results saved. Raise it with --max-usd if intended.`,
+    );
+  } else {
+    console.error("Eval failed:", err instanceof Error ? err.message : err);
+  }
   process.exit(1);
 });
