@@ -8,7 +8,7 @@ Schools are banning AI because students use it to skip the learning. Asterisk gi
 - only draws on the teacher's sources,
 - guides students toward answers without giving them away.
 
-Before submitting, the student gets rubric-based feedback and answers three comprehension questions out loud. The teacher then sees where understanding broke down, for example "14/22 students found only one root of the quadratic."
+Before submitting, the student gets rubric-based feedback and answers three comprehension questions in writing. The teacher then sees where understanding broke down, for example "14/22 students found only one root of the quadratic."
 
 Built for the Meta Global AI Developer Hackathon (Indie track, *Build for Your World*).
 
@@ -22,7 +22,7 @@ Built for the Meta Global AI Developer Hackathon (Indie track, *Build for Your W
 | Set a help level from 1 (hints only) to 4 (worked parallel example) | Guided chat grounded in the teacher's sources, with citations |
 | Allowlist the sites where the panel works | Photo of handwritten work → per-problem feedback |
 | Approve 3 end-of-assignment comprehension questions | Rubric pre-check that never rewrites their work |
-| Live monitor of flagged messages; misconception reports | Answer comprehension questions by voice |
+| Live monitor of flagged messages; misconception reports | Answer 3 comprehension questions before marking the work complete |
 
 ## Meta models used
 
@@ -32,12 +32,11 @@ Every runtime AI call goes to a Meta model, through one provider module (`packag
 |---|---|---|
 | Guided tutoring with citations, at 4 help levels | Muse Spark (`muse-spark-1.3`, Meta Model API) | ✅ Live |
 | Rubric pre-check feedback on a student's draft | Muse Spark (structured output) | ✅ Live |
-| Question generation, comprehension grading | Muse Spark | _TBD_ |
 | Import a pasted/uploaded rubric into structured criteria | Muse Spark (structured output) | Built; not yet tried on Muse Spark |
 | District-hosted mode | Muse Spark Open via Baseten / Modal | Config switch stubbed |
 | Photo of handwritten work → feedback | Muse Spark (vision) | _TBD_ |
 | Split a worksheet photo into problems | SAM 3.1 | _TBD_ |
-| Spoken comprehension check | Muse Voice Transcribe → Muse Spark | _TBD_ |
+| Comprehension check: draft 3 questions for teacher approval, grade typed answers | Muse Spark (structured output) | _In progress_ |
 | Class misconception report + reteach plan | Muse Spark, multi-step tool-calling agent | _TBD_ |
 | Off-topic / jailbreak classifier, answer-leak check | Muse Spark (structured output) | ✅ Live; measured by `pnpm eval` below |
 

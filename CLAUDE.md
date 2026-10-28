@@ -8,7 +8,7 @@ Read this whole file before writing code. It is the source of truth for scope, s
 
 ## 1. Product in one paragraph
 
-Schools are banning AI because students use it to skip learning. Asterisk lets teachers put AI back in the classroom on their terms. The teacher uploads the assignment, the source materials, and the rubric. Students get an AI side panel that **only works on teacher-approved sites**, **only draws on the teacher's sources**, and **guides them toward answers without giving them away**. Before submitting, the student gets rubric-based feedback and must answer **3 comprehension questions out loud**. The teacher gets per-student and class-wide reports on where understanding breaks down (e.g. "14/22 students found only one root of the quadratic").
+Schools are banning AI because students use it to skip learning. Asterisk lets teachers put AI back in the classroom on their terms. The teacher uploads the assignment, the source materials, and the rubric. Students get an AI side panel that **only works on teacher-approved sites**, **only draws on the teacher's sources**, and **guides them toward answers without giving them away**. Before submitting, the student gets rubric-based feedback and must answer **3 comprehension questions in writing**. The teacher gets per-student and class-wide reports on where understanding breaks down (e.g. "14/22 students found only one root of the quadratic").
 
 Positioning: this is **not** an "AI for Education chatbot" (explicitly listed as an anti-project). The value is teacher control, grounding, proof of understanding, and teacher insight. The demo leads with the teacher, not the chat.
 
@@ -47,7 +47,7 @@ Bonus prizes we target: **Best Build on Meta Open Weight Models** ($10K, require
 | "District-hosted mode": same features on self-hosted model | **Muse Spark Open** via Modal or Baseten | Baseten model id: `meta-models/muse-spark-open-1026` (NOT the id in Baseten's docs). Provider is a config switch. |
 | Photo of handwritten work → feedback | **Muse Spark** (vision) | Student snaps a worksheet in the side panel |
 | Split a worksheet photo into individual problems | **SAM 3.1** | Crops each problem so feedback is per-problem (stretch) |
-| Spoken comprehension check | **Muse Voice Transcribe** → Muse Spark | Student answers the 3 end questions by voice |
+| Comprehension check (text) | **Muse Spark** | Generates the 3 end questions for teacher approval; grades the student's typed answers. Text-only by decision (Oct 28): no voice input. |
 | Class misconception report + reteach suggestions | **Muse Spark** as a multi-step agent | Tool-calling over the class's submissions and chat logs |
 | Off-topic monitor | **Muse Spark** (or Glimmer if small/cheap enough) | Classifies each student message |
 
@@ -99,7 +99,7 @@ All model calls go through **one provider module** (`packages/ai`) so the provid
 - **S4. Read the current page:** with the student's click, send the current Google Doc text (their draft) as context.
 - **S5. Photo upload:** snap/upload handwritten work → per-problem feedback (SAM 3.1 split as stretch).
 - **S6. Pre-submit check:** grades the draft against the rubric, shows per-criterion feedback and what to improve. **Never rewrites the student's work.**
-- **S7. Comprehension check:** 3 questions, answered by voice (text fallback). Graded for understanding, sent to the teacher.
+- **S7. Comprehension check:** 3 questions, answered in writing (text only, no voice). Graded for understanding, sent to the teacher.
 - **S8. Mark complete** → results sent to the teacher's report.
 
 ---
@@ -122,7 +122,7 @@ All model calls go through **one provider module** (`packages/ai`) so the provid
   - `apps/extension` — Chrome MV3 extension, Side Panel API, React + Vite (CRXJS or equivalent). Talks to `apps/web` API.
   - `packages/ai` — provider abstraction, prompts, guardrail pipeline, model call logging.
   - `packages/shared` — types and zod schemas shared by web and extension.
-- **DB + storage:** Supabase (Postgres + Storage for uploaded files and audio). Drizzle ORM with migrations.
+- **DB + storage:** Supabase (Postgres + Storage for uploaded files). Drizzle ORM with migrations.
 - **Source handling:** extract text from PDF/DOCX at upload; chunk by section with page refs. Start by putting the full assignment sources in context if they fit in Muse Spark's context window (check the model list); add Postgres full-text retrieval over chunks only if they don't fit.
 - **Deploy:** Vercel for `apps/web`. Extension loaded unpacked for the demo; build a zip for judges.
 - **Auth:** demo-grade only. Teacher: single seeded account or a simple passcode. Students: join code + display name stored in extension storage.
@@ -144,7 +144,7 @@ All model calls go through **one provider module** (`packages/ai`) so the provid
 | 3 | Thu Oct 29 | Extension: side panel, allowlist gating, join flow, grounded guided chat with citations, help levels. |
 | 4 | Fri Oct 30 | Guardrail pipeline (answer-leak check, off-topic/jailbreak classifier), teacher live monitor, `pnpm eval`. |
 | 5 | Sat Oct 31 | Pre-submit rubric check; read current Google Doc draft. |
-| 6 | Sun Nov 1 | Comprehension check: question generation + teacher approval, voice answers via Muse Voice Transcribe, grading. |
+| 6 | Sun Nov 1 | Comprehension check: question generation + teacher approval, typed answers, grading. |
 | 7 | Mon Nov 2 | Reports: per-student + class misconception agent with reteach plan. Photo-of-work feedback (Muse Spark vision). |
 | 8 | Tue Nov 3 | Muse Spark Open provider (Baseten/Modal) switch working end to end. SAM 3.1 problem splitting if time. Polish UI, seed a full demo class (algebra: quadratics). Final README with eval results. |
 | 9 | Wed Nov 4 | Record 3-min demo video, X post, submit by **6:00 PM PT**. |
@@ -158,7 +158,7 @@ Cut order if behind: SAM 3.1 split → photo upload → live monitor UI (keep fl
 1. **0:00–0:20** Problem: schools ban AI; students will need it like a calculator.
 2. **0:20–0:50** Teacher creates a quadratics assignment: uploads sources + rubric, sets help level 2, allows Google Docs only, approves 3 generated questions.
 3. **0:50–1:40** Student in Google Docs: asks for help → Socratic guidance with citations. Tries "just give me the answer" → refused + flagged. Snaps a photo of handwritten work → feedback on the missed second root.
-4. **1:40–2:15** Pre-submit rubric feedback → answers the 3 questions out loud.
+4. **1:40–2:15** Pre-submit rubric feedback → answers the 3 comprehension questions.
 5. **2:15–2:45** Teacher report: "14/22 missed the second root", reteach suggestion. Toggle to district-hosted Muse Spark Open: same flow.
 6. **2:45–3:00** Eval leak rate + vision: Asterisk handles the mundane learning faster so students have time to take risks and build.
 
