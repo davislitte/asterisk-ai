@@ -114,7 +114,7 @@ describe("built extension", { timeout: 120_000 }, () => {
   });
 });
 
-/** Removes only what this run created: its student (cascades to chats) and FAKE tutor logs since start. */
+/** Removes only what this run created: its student (cascades to chats) and FAKE call logs since start. */
 async function deleteTestData() {
   if (!process.env.DATABASE_URL) {
     console.warn(`DATABASE_URL not set; remove student "${STUDENT}" by hand.`);
@@ -123,7 +123,8 @@ async function deleteTestData() {
   const sql = postgres(process.env.DATABASE_URL, { prepare: false });
   try {
     await sql`delete from students where display_name = ${STUDENT}`;
-    await sql`delete from model_call_logs where provider = 'FAKE' and purpose = 'tutor.reply' and created_at >= ${startedAt}`;
+    // Every FAKE call this run made: tutor.reply, guard.classify, guard.leak_check.
+    await sql`delete from model_call_logs where provider = 'FAKE' and created_at >= ${startedAt}`;
   } finally {
     await sql.end();
   }

@@ -16,7 +16,8 @@
     "db:generate": "pnpm --filter @asterisk/web db:generate",
     "db:migrate": "pnpm --filter @asterisk/web db:migrate",
     "db:seed": "pnpm --filter @asterisk/web db:seed",
-    "ai:smoke": "pnpm --filter @asterisk/ai smoke"
+    "ai:smoke": "pnpm --filter @asterisk/ai smoke",
+    "eval": "pnpm --filter @asterisk/ai eval"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

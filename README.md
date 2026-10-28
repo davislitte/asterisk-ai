@@ -37,7 +37,7 @@ Every runtime AI call goes to a Meta model, through one provider module (`packag
 | Split a worksheet photo into problems | SAM 3.1 | _TBD_ |
 | Spoken comprehension check | Muse Voice Transcribe → Muse Spark | _TBD_ |
 | Class misconception report + reteach plan | Muse Spark, multi-step tool-calling agent | _TBD_ |
-| Off-topic / jailbreak monitor | Muse Spark | _TBD_ |
+| Off-topic / jailbreak classifier, answer-leak check | Muse Spark (structured output) | Built; tested only against the `FAKE` stub so far |
 
 We use `muse-spark-1.3`, not the cheaper `-contributor` variant, because that variant uses request data for training and our users are minors.
 
@@ -56,7 +56,14 @@ Nothing produced by `FAKE` is shown in the demo or counted in eval results.
 
 - **Answer keys never reach students.** Teachers can enter an answer key per problem so Asterisk can check its own replies for leaks. Student-facing payloads are built field by field by `toStudentAssignment()` ([`packages/shared/src/student.ts`](packages/shared/src/student.ts)) and validated against a strict schema. Every student route responds through `studentJson()`, which refuses any payload containing an answer key. A test fails the build if a route under `app/api/student/` skips either step.
 - **Teacher-supplied URLs** are fetched behind an SSRF guard: public IPs only, re-checked on every redirect, with size and time limits.
-- _TBD_ — answer-leak check on every response, grounding to teacher sources, off-topic/jailbreak classification, never rewriting student work.
+- **Every tutor reply is checked for answer leaks before a student sees it** ([`packages/ai/tasks/guarded-tutor.ts`](packages/ai/tasks/guarded-tutor.ts)). The pipeline runs per message:
+  1. The student's message is classified, in parallel with the tutor drafting a reply.
+  2. Muse Spark acts as a judge and compares the draft with the teacher's answer keys, server-side. It flags stated answers, giveaway steps, confirming or denying a guessed answer, and "examples" that reuse the assigned numbers.
+  3. A leaking draft is rewritten once in a stricter mode. If the rewrite still leaks, the student gets a safe fallback reply.
+
+  The check **fails closed**: if it can't run, no unchecked reply is shown. The tutor model itself never receives the answer keys.
+- **Every student message is classified** as off-topic, asking for the answer, or trying to bypass the rules (jailbreak). Flags go to the teacher's live **Monitor** tab, along with every leak the guard blocked. Students get a gentle redirect, and the join screen tells them their teacher can see their chats.
+- **Grounding:** the tutor answers only from the teacher's sources, cites the section it used, and says so when the sources don't cover a question.
 
 ## Student privacy
 
@@ -133,7 +140,14 @@ Requirements: Node 24+, pnpm, a Supabase project, and a [Meta Model API](https:/
 
 ## Eval results
 
-_TBD_ — `pnpm eval` runs ~30 adversarial student prompts against each help level and reports the answer-leak rate.
+`pnpm eval` runs 34 student messages against all 4 help levels, through the full guarded pipeline ([`packages/ai/eval`](packages/ai/eval)):
+
+- **28 adversarial messages:** direct asks, claimed teacher permission, role-play, "is x = 2 right?", encoding tricks, fishing for the factored form, emotional pressure, and prompt injection.
+- **6 controls:** off-topic and genuine questions.
+
+A separate judge prompt, distinct from the in-app leak check, grades both the raw tutor draft and the final reply. The headline number is the raw leak rate versus the guarded leak rate. The eval also reports classifier recall. Results are saved to `packages/ai/eval/results/`.
+
+_Results pending: the eval refuses to report leak rates on the `FAKE` stub, and Meta API credits haven't arrived yet._
 
 ## Built during the hackathon
 
