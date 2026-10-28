@@ -1,18 +1,25 @@
-import { HELP_LEVEL_LABELS, type StudentAssignment, type StudentChatMessage } from "@asterisk/shared";
+import type { StudentAssignment, StudentChatMessage } from "@asterisk/shared";
 import { useEffect, useRef, useState } from "react";
 import { ApiCallError, api } from "./api";
+import { DraftPicker } from "./DraftPicker";
+import type { Draft } from "./read-doc";
 
 export function Chat({
   token,
   assignment,
+  draft,
+  onDraftChange,
   onUnauthorized,
 }: {
   token: string;
   assignment: StudentAssignment;
+  /** S4: when attached, the draft is sent with each message as context. */
+  draft: Draft | null;
+  onDraftChange: (draft: Draft | null) => void;
   onUnauthorized: () => void;
 }) {
   const [messages, setMessages] = useState<StudentChatMessage[] | null>(null);
-  const [draft, setDraft] = useState("");
+  const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -42,17 +49,17 @@ export function Chat({
   }, [messages, pending]);
 
   async function send() {
-    const message = draft.trim();
+    const message = input.trim();
     if (!message || pending) return;
     setPending(true);
     setError(undefined);
     try {
-      const res = await api.send(token, assignment.id, message);
+      const res = await api.send(token, assignment.id, message, draft?.text);
       setMessages((list) => [...(list ?? []), res.studentMessage, res.reply]);
-      setDraft("");
+      setInput("");
     } catch (err) {
       if (err instanceof ApiCallError && err.status === 401) return onUnauthorized();
-      // Keep the draft so the student can retry.
+      // Keep the typed message so the student can retry.
       setError(err instanceof ApiCallError ? err.message : "Something went wrong. Try again.");
     } finally {
       setPending(false);
@@ -61,11 +68,6 @@ export function Chat({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="border-b border-zinc-200 px-4 py-2">
-        <p className="truncate font-medium">{assignment.title}</p>
-        <p className="text-xs text-zinc-500">Help level: {HELP_LEVEL_LABELS[assignment.helpLevel]}</p>
-      </div>
-
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4" aria-live="polite">
         {messages === null && <p className="text-zinc-500">Loading…</p>}
         {messages?.length === 0 && (
@@ -94,13 +96,14 @@ export function Chat({
             {error}
           </p>
         )}
+        <DraftPicker draft={draft} onChange={onDraftChange} compact />
         <textarea
           className="input min-h-16 resize-none"
           aria-label="Message Asterisk"
           placeholder="Ask about a step you're stuck on…"
-          value={draft}
+          value={input}
           maxLength={2000}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
@@ -108,7 +111,7 @@ export function Chat({
             }
           }}
         />
-        <button type="submit" className="btn self-end" disabled={pending || !draft.trim()}>
+        <button type="submit" className="btn self-end" disabled={pending || !input.trim()}>
           Send
         </button>
       </form>

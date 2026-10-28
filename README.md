@@ -63,6 +63,8 @@ Nothing produced by `FAKE` is shown in the demo or counted in eval results.
 
   The check **fails closed**: if it can't run, no unchecked reply is shown. The tutor model itself never receives the answer keys.
 - **Every student message is classified** as off-topic, asking for the answer, or trying to bypass the rules (jailbreak). Flags go to the teacher's live **Monitor** tab, along with every leak the guard blocked. Students get a gentle redirect, and the join screen tells them their teacher can see their chats.
+- **Rubric pre-check never rewrites student work.** Before submitting, a student can check their draft against the teacher's rubric. For each criterion they get a level, one thing that's working and one next step. Points come from the teacher's rubric, never from the model. The grader sees the answer keys on the server so it can judge accuracy. Its feedback then goes through a feedback-mode leak check before the student sees it: it may say an answer is wrong, but may not supply the correct value or corrected work.
+- **Reading the student's Google Doc only happens on their click.** The panel runs a same-origin read inside the Doc tab, using the Doc's own plain-text export and the student's own session. No Google credentials ever reach Asterisk. Drafts shared in chat are context for that question only and aren't saved with the chat.
 - **Grounding:** the tutor answers only from the teacher's sources, cites the section it used, and says so when the sources don't cover a question.
 
 ## Student privacy

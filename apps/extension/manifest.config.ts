@@ -24,7 +24,8 @@ export default defineManifest(({ mode }) => ({
   side_panel: { default_path: "src/sidepanel/index.html" },
   background: { service_worker: "src/background.ts", type: "module" },
   // `tabs` lets the panel read the active tab's URL to enforce the teacher's allowlist.
-  permissions: ["sidePanel", "storage", "tabs"],
-  // Lets the panel call the Asterisk API without CORS.
-  host_permissions: [`${apiOrigin(mode)}/*`],
+  // `scripting` + the Docs host permission let it read the student's Google Doc when they click "Read my doc".
+  permissions: ["sidePanel", "storage", "tabs", "scripting"],
+  // The Asterisk API (no CORS needed) and Google Docs (read on click only).
+  host_permissions: [`${apiOrigin(mode)}/*`, "https://docs.google.com/document/*"],
 }));

@@ -22,6 +22,7 @@ import postgres from "postgres";
 const DIST = path.resolve(import.meta.dirname, "..", "dist");
 const STUDENT = `E2E Test ${Date.now().toString(36)}`;
 const DOC_URL = "https://docs.google.com/document/d/e2e-doc/edit";
+const DOC_TEXT = "1. x^2 - 5x + 6 = 0\n(x - 2)(x - 3) = 0\nx = 2";
 
 let context: BrowserContext;
 let panel: Page;
@@ -42,7 +43,13 @@ describe("built extension", { timeout: 120_000 }, () => {
       args: [`--disable-extensions-except=${DIST}`, `--load-extension=${DIST}`],
     });
     const fakePage = (title: string) => ({ contentType: "text/html", body: `<title>${title}</title><p>${title}</p>` });
-    await context.route("https://docs.google.com/**", (route) => route.fulfill(fakePage("Student draft")));
+    await context.route("https://docs.google.com/**", (route) =>
+      route.fulfill(
+        route.request().url().includes("/export?format=txt")
+          ? { contentType: "text/plain; charset=utf-8", body: `﻿${DOC_TEXT}` }
+          : fakePage("Algebra HW - Google Docs"),
+      ),
+    );
     await context.route("https://www.google.com/**", (route) => route.fulfill(fakePage("Search")));
   });
 
@@ -96,6 +103,32 @@ describe("built extension", { timeout: 120_000 }, () => {
     const sources = panel.getByRole("list", { name: "Sources" });
     await sources.waitFor();
     assert.match(await sources.innerText(), /Unit 4 Notes/);
+  });
+
+  it("reads the Google Doc on click and sends it as chat context", async () => {
+    await panel.getByRole("button", { name: "📄 Share my doc" }).click();
+    await panel.getByText(/Using “Algebra HW” · 18 words/).waitFor();
+
+    const request = panel.waitForRequest((r) => r.url().endsWith("/chat") && r.method() === "POST");
+    const box = panel.getByLabel("Message Asterisk");
+    await box.fill("Can you look at my problem 1?");
+    await box.press("Enter");
+    const body = (await request).postDataJSON() as { message: string; draft?: string };
+    assert.equal(body.draft, DOC_TEXT, "draft sent without the BOM");
+    await panel.getByText(/\[FAKE MODEL\]/).nth(1).waitFor();
+  });
+
+  it("checks the draft against the rubric without rewriting it", async () => {
+    await panel.getByRole("tab", { name: "Check my work" }).click();
+    await panel.getByRole("button", { name: "Check against the rubric" }).click();
+    const feedback = panel.getByRole("region", { name: "Rubric feedback" });
+    await feedback.waitFor();
+    const text = await feedback.innerText();
+    assert.match(text, /8 \/ 12 points · practice only/);
+    for (const criterion of ["Factoring", "Finds all roots", "Checks and interprets", "Explains reasoning"]) {
+      assert.match(text, new RegExp(criterion));
+    }
+    await panel.getByRole("tab", { name: "Ask" }).click();
   });
 
   it("turns off again when the doc tab navigates elsewhere", async () => {

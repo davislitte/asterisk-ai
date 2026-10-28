@@ -5,6 +5,8 @@ import {
   ChatReplyResponse,
   JoinResponse,
   type JoinRequest,
+  type RubricCheckRequest,
+  RubricCheckResponse,
 } from "@asterisk/shared";
 import type { z } from "zod";
 import { API_BASE } from "./platform";
@@ -50,10 +52,14 @@ export const api = {
   assignments: (token: string) => call("/api/student/assignments", AssignmentsResponse, { token }),
   history: (token: string, assignmentId: string) =>
     call(`/api/student/assignments/${assignmentId}/chat`, ChatHistoryResponse, { token }),
-  send: (token: string, assignmentId: string, message: string) =>
+  send: (token: string, assignmentId: string, message: string, draft?: string) =>
     call(`/api/student/assignments/${assignmentId}/chat`, ChatReplyResponse, {
       token,
       method: "POST",
-      body: { message },
+      body: { message, ...(draft ? { draft } : {}) },
     }),
+  rubricCheck: (token: string, assignmentId: string) =>
+    call(`/api/student/assignments/${assignmentId}/rubric-check`, RubricCheckResponse, { token }),
+  runRubricCheck: (token: string, assignmentId: string, body: RubricCheckRequest) =>
+    call(`/api/student/assignments/${assignmentId}/rubric-check`, RubricCheckResponse, { token, method: "POST", body }),
 };

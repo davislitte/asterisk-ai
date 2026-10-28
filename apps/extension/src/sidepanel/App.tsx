@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { z } from "zod";
 import { ApiCallError, api } from "./api";
 import { AssignmentList, NotEnabled } from "./AssignmentList";
-import { Chat } from "./Chat";
+import { AssignmentView } from "./AssignmentView";
 import { JoinScreen } from "./JoinScreen";
 import { isExtension, load, remove, save, useActiveTabUrl } from "./platform";
 
@@ -108,7 +108,12 @@ export function App() {
       ) : !allowedHere ? (
         <NotEnabled url={tabUrl} allowlist={assignment.allowlist} />
       ) : (
-        <Chat token={session.value.token} assignment={assignment} onUnauthorized={onUnauthorized} />
+        <AssignmentView
+          key={assignment.id}
+          token={session.value.token}
+          assignment={assignment}
+          onUnauthorized={onUnauthorized}
+        />
       )}
     </Shell>
   );
