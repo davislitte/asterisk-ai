@@ -57,7 +57,9 @@ export function JoinScreen({ onJoined, notice }: { onJoined: (session: JoinRespo
             maxLength={40}
             required
           />
-          <span className="text-xs text-zinc-500">Only your teacher sees this. Asterisk never asks for your email.</span>
+          <span className="text-xs text-zinc-500">
+            Your teacher can see your name and your chats with Asterisk. Asterisk never asks for your email.
+          </span>
         </label>
         {error && (
           <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-red-700">

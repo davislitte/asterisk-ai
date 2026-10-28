@@ -14,6 +14,15 @@ export { importRubric } from "./tasks/import-rubric";
 export { TUTOR_PROMPT_VERSION, type TutorContext, type TutorSource, type TutorTurn } from "./prompts/tutor";
 export { tutorReply } from "./tasks/tutor-reply";
 export {
+  type GuardOutcome,
+  type GuardedTutorInput,
+  type GuardedTutorResult,
+  LEAK_FALLBACK_REPLY,
+  checkLeak,
+  classifyMessage,
+  guardedTutorReply,
+} from "./tasks/guarded-tutor";
+export {
   type ModelCallLogEntry,
   type ModelCallLogger,
   consoleModelCallLogger,

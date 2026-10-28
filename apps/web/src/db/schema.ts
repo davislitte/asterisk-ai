@@ -178,6 +178,13 @@ export const chatMessages = pgTable(
     content: text("content").notNull(),
     citedChunkIds: uuid("cited_chunk_ids").array().notNull().default(sql`'{}'::uuid[]`),
     flags: messageFlag("flags").array().notNull().default(sql`'{}'::message_flag[]`),
+    /** Assistant turns: what the answer-leak guard did. Teacher-only. */
+    guard: jsonb("guard").$type<{
+      leakDetected: boolean;
+      regenerated: boolean;
+      fallback: boolean;
+      leakedProblemIds: string[];
+    }>(),
     createdAt: createdAt(),
   },
   (t) => [

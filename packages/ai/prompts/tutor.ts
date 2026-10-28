@@ -26,6 +26,8 @@ export interface TutorContext {
   sources: TutorSource[];
   history: TutorTurn[];
   message: string;
+  /** Set when regenerating after the leak check rejected a draft. */
+  strict?: { leakedProblemIds: string[] };
 }
 
 export const TutorReply = z.strictObject({
@@ -83,6 +85,13 @@ export function tutorPromptV1(ctx: TutorContext): ChatMessage[] {
     "",
     HELP_LEVEL_RULES[assignment.helpLevel],
     "",
+    ...(ctx.strict
+      ? [
+          `STRICT MODE: a previous draft gave away the answer to problem(s) ${ctx.strict.leakedProblemIds.join(", ") || "on this assignment"}.`,
+          "This time do not state any value, factor, root or step specific to an assigned problem, and don't evaluate any answer the student proposed. Ask one guiding question about the general method and point to the relevant notes.",
+          "",
+        ]
+      : []),
     "STYLE: warm, encouraging, under 120 words, plain text, simple math notation like x^2. One idea at a time.",
     "",
     "OUTPUT: JSON with `reply` (what the student sees) and `citations` (labels like \"S2\" of the source sections you actually used; empty if none).",

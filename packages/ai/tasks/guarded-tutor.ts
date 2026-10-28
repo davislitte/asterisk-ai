@@ -1,0 +1,108 @@
+import type { MessageFlag } from "@asterisk/shared";
+import {
+  type ClassifyInput,
+  type LeakCheckProblem,
+  LeakVerdict,
+  MessageClassification,
+  classifyMessagePromptV1,
+  leakCheckPromptV1,
+} from "../prompts/guard";
+import type { TutorContext } from "../prompts/tutor";
+import { completeJson } from "../provider/client";
+import { tutorReply } from "./tutor-reply";
+
+/**
+ * The guardrail pipeline around every tutor turn (CLAUDE.md §6):
+ *
+ *   classify(message) ─┐            (in parallel; flags go to the teacher monitor)
+ *   tutor draft ───────┴─▶ leak check ─▶ ok ───────────────▶ reply
+ *                                       └─ leak ─▶ strict redraft ─▶ leak check ─▶ ok ─▶ reply
+ *                                                                              └─ leak ─▶ safe fallback
+ *
+ * The leak check fails closed: if it can't run, the error propagates and no
+ * unchecked reply is shown. Classification fails open (no flags), because a
+ * missing flag only affects the teacher's monitor, not what the student sees.
+ */
+
+export const LEAK_FALLBACK_REPLY =
+  "I can't give that one away, but I can help you get there. Which step are you on right now, and what does your work look like so far?";
+
+export interface GuardedTutorInput extends TutorContext {
+  /** Server-side only. Problem id → teacher's answer key. */
+  answerKeys: Record<string, string | undefined>;
+}
+
+export interface GuardOutcome {
+  /** True if any draft was caught leaking. */
+  leakDetected: boolean;
+  regenerated: boolean;
+  fallback: boolean;
+  leakedProblemIds: string[];
+}
+
+export interface GuardedTutorResult {
+  reply: string;
+  citations: string[];
+  flags: MessageFlag[];
+  guard: GuardOutcome;
+  /** The first, unchecked draft. For evals and logs only; never show it to a student. */
+  rawDraft: string;
+}
+
+export async function classifyMessage(input: ClassifyInput): Promise<MessageFlag[]> {
+  try {
+    const result = await completeJson({
+      purpose: "guard.classify",
+      messages: classifyMessagePromptV1(input),
+      schemaName: "message_classification",
+      schema: MessageClassification,
+      reasoningEffort: "low",
+    });
+    return [...new Set(result.data.flags)];
+  } catch (err) {
+    console.error("[guard] classification failed; continuing without flags", err);
+    return [];
+  }
+}
+
+export async function checkLeak(problems: LeakCheckProblem[], studentMessage: string, reply: string): Promise<LeakVerdict> {
+  if (problems.length === 0) return { leaks: false, problemIds: [], reason: "No assigned problems." };
+  const result = await completeJson({
+    purpose: "guard.leak_check",
+    messages: leakCheckPromptV1({ problems, studentMessage, reply }),
+    schemaName: "leak_verdict",
+    schema: LeakVerdict,
+    reasoningEffort: "medium",
+  });
+  return result.data;
+}
+
+export async function guardedTutorReply(input: GuardedTutorInput): Promise<GuardedTutorResult> {
+  const { answerKeys, ...ctx } = input;
+  const problems: LeakCheckProblem[] = ctx.assignment.problems.map((p) => ({
+    id: p.id,
+    prompt: p.prompt,
+    answerKey: answerKeys[p.id],
+  }));
+  const previousReply = [...ctx.history].reverse().find((t) => t.role === "assistant")?.content;
+
+  const [flags, draft] = await Promise.all([
+    classifyMessage({ assignment: ctx.assignment, message: ctx.message, previousReply }),
+    tutorReply(ctx),
+  ]);
+
+  const guard: GuardOutcome = { leakDetected: false, regenerated: false, fallback: false, leakedProblemIds: [] };
+  const first = await checkLeak(problems, ctx.message, draft.reply);
+  if (!first.leaks) return { ...draft, flags, guard, rawDraft: draft.reply };
+
+  guard.leakDetected = true;
+  guard.regenerated = true;
+  guard.leakedProblemIds = first.problemIds;
+  const redraft = await tutorReply({ ...ctx, strict: { leakedProblemIds: first.problemIds } });
+  const second = await checkLeak(problems, ctx.message, redraft.reply);
+  if (!second.leaks) return { ...redraft, flags, guard, rawDraft: draft.reply };
+
+  guard.fallback = true;
+  guard.leakedProblemIds = [...new Set([...first.problemIds, ...second.problemIds])];
+  return { reply: LEAK_FALLBACK_REPLY, citations: [], flags, guard, rawDraft: draft.reply };
+}

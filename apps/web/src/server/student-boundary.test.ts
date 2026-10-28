@@ -36,6 +36,7 @@ describe("student API boundary", () => {
       const body = await res.text();
       assert.ok(!body.includes("x = 2 or x = 3"));
       assert.throws(() => assertNoAnswerKeys({ a: [{ b: { answer_key: "x" } }] }), StudentPayloadLeakError);
+      assert.throws(() => assertNoAnswerKeys({ answerKeys: { "1": "x = 2" } }), StudentPayloadLeakError);
     } finally {
       mock.restoreAll();
     }

@@ -7,7 +7,8 @@ import {
 } from "@asterisk/shared";
 import { db } from "@/db/client";
 import { chatMessages } from "@/db/schema";
-import { ModelCallError, STUDENT_SAFE_ERROR_MESSAGE, type TutorSource, tutorReply } from "@/server/ai";
+import { ModelCallError, STUDENT_SAFE_ERROR_MESSAGE, type TutorSource, guardedTutorReply } from "@/server/ai";
+import { getAnswerKeysForLeakCheck } from "@/server/student/answer-keys";
 import { studentJson } from "@/server/student-response";
 import {
   chunksByIds,
@@ -47,7 +48,10 @@ export async function GET(request: Request, ctx: RouteContext<"/api/student/assi
   return studentJson(body);
 }
 
-/** S3: one guided, source-grounded tutor turn at the teacher's help level. */
+/**
+ * S3: one guided, source-grounded tutor turn at the teacher's help level,
+ * through the guardrail pipeline (classify + answer-leak check, §6).
+ */
 export async function POST(request: Request, ctx: RouteContext<"/api/student/assignments/[assignmentId]/chat">) {
   const receivedAt = new Date();
   const student = await getStudent(request);
@@ -73,12 +77,15 @@ export async function POST(request: Request, ctx: RouteContext<"/api/student/ass
 
   let reply;
   try {
-    // `assignment` is the student view: the tutor never receives answer keys.
-    reply = await tutorReply({
+    // `assignment` is the student view, so the tutor never receives answer keys.
+    // Answer keys go only to the server-side leak check, and nothing from it is
+    // returned to the student except the final, checked reply.
+    reply = await guardedTutorReply({
       assignment,
       sources,
       history: history.map((h) => ({ role: h.role, content: h.content })),
       message: parsed.data.message,
+      answerKeys: await getAnswerKeysForLeakCheck(student.classId, assignment.id),
     });
   } catch (err) {
     if (!(err instanceof ModelCallError)) console.error("[chat] tutor failed", err);
@@ -94,6 +101,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/student/ass
         assignmentId: assignment.id,
         role: "student",
         content: parsed.data.message,
+        flags: reply.flags,
         createdAt: receivedAt,
       },
       {
@@ -102,6 +110,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/student/ass
         role: "assistant",
         content: reply.reply,
         citedChunkIds,
+        guard: reply.guard,
         createdAt: new Date(),
       },
     ])

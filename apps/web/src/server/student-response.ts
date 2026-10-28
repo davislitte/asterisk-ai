@@ -7,7 +7,7 @@
  * (`problems[].answerKey`) can never reach the extension.
  */
 
-const FORBIDDEN_KEYS = new Set(["answerkey", "answer_key"]);
+const FORBIDDEN_KEYS = new Set(["answerkey", "answer_key", "answerkeys", "answer_keys"]);
 
 export class StudentPayloadLeakError extends Error {
   constructor(path: string) {
