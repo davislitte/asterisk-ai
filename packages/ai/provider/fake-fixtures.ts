@@ -27,6 +27,20 @@ export const FAKE_FIXTURES: Record<string, Fixture> = {
     if (/\b(minecraft|fortnite|roblox|tiktok|weather|football|crush)\b/.test(msg)) flags.push("off_topic");
     return { flags, reason: `[FAKE MODEL] Keyword match: ${flags.join(", ") || "none"}.` };
   },
+  // Picks each criterion's second-highest level. NOT a grader.
+  "rubric.check": (messages) => {
+    const instructions = text(messages.find((m) => m.role === "instructions"));
+    const criteria = [...instructions.matchAll(/^\[(C\d+)\] (.+)$((?:\n {2}- .+)+)/gm)].map(([, id, name, levelLines]) => {
+      const labels = [...levelLines!.matchAll(/^ {2}- (.+?) \(\d+ pts\)/gm)].map((m) => m[1]!);
+      return {
+        id: id!,
+        level: labels[1] ?? labels[0] ?? "",
+        strengths: `[FAKE MODEL] Canned strength for "${name!.split(" — ")[0]}".`,
+        nextStep: "[FAKE MODEL] Canned next step. Not based on your draft.",
+      };
+    });
+    return { criteria, overall: "[FAKE MODEL] Canned overall feedback." };
+  },
   // String matching, NOT a judge: a draft "leaks" if it contains an answer key, or all of its numbers.
   "guard.leak_check": (messages) => {
     const instructions = text(messages.find((m) => m.role === "instructions"));

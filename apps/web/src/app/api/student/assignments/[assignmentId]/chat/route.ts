@@ -85,6 +85,9 @@ export async function POST(request: Request, ctx: RouteContext<"/api/student/ass
       sources,
       history: history.map((h) => ({ role: h.role, content: h.content })),
       message: parsed.data.message,
+      // S4: the student's draft, sent only when they chose to share it. Used as
+      // context for this turn; not stored with the chat.
+      draft: parsed.data.draft,
       answerKeys: await getAnswerKeysForLeakCheck(student.classId, assignment.id),
     });
   } catch (err) {

@@ -65,11 +65,16 @@ export async function classifyMessage(input: ClassifyInput): Promise<MessageFlag
   }
 }
 
-export async function checkLeak(problems: LeakCheckProblem[], studentMessage: string, reply: string): Promise<LeakVerdict> {
+export async function checkLeak(
+  problems: LeakCheckProblem[],
+  studentMessage: string,
+  reply: string,
+  mode: "chat" | "feedback" = "chat",
+): Promise<LeakVerdict> {
   if (problems.length === 0) return { leaks: false, problemIds: [], reason: "No assigned problems." };
   const result = await completeJson({
     purpose: "guard.leak_check",
-    messages: leakCheckPromptV1({ problems, studentMessage, reply }),
+    messages: leakCheckPromptV1({ problems, studentMessage, reply, mode }),
     schemaName: "leak_verdict",
     schema: LeakVerdict,
     reasoningEffort: "medium",
@@ -92,14 +97,16 @@ export async function guardedTutorReply(input: GuardedTutorInput): Promise<Guard
   ]);
 
   const guard: GuardOutcome = { leakDetected: false, regenerated: false, fallback: false, leakedProblemIds: [] };
-  const first = await checkLeak(problems, ctx.message, draft.reply);
+  // Include a shared draft so "confirming" an answer written in it also counts as a leak.
+  const asked = ctx.draft ? `${ctx.message}\n\n[The student also shared this draft]\n${ctx.draft}` : ctx.message;
+  const first = await checkLeak(problems, asked, draft.reply);
   if (!first.leaks) return { ...draft, flags, guard, rawDraft: draft.reply };
 
   guard.leakDetected = true;
   guard.regenerated = true;
   guard.leakedProblemIds = first.problemIds;
   const redraft = await tutorReply({ ...ctx, strict: { leakedProblemIds: first.problemIds } });
-  const second = await checkLeak(problems, ctx.message, redraft.reply);
+  const second = await checkLeak(problems, asked, redraft.reply);
   if (!second.leaks) return { ...redraft, flags, guard, rawDraft: draft.reply };
 
   guard.fallback = true;
