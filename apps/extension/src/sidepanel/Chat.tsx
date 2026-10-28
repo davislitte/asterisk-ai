@@ -122,7 +122,7 @@ export function Chat({
 function Bubble({ message }: { message: StudentChatMessage }) {
   const mine = message.role === "student";
   return (
-    <div className={mine ? "flex justify-end" : "flex justify-start"}>
+    <div className={mine ? "flex justify-end" : "flex justify-start"} data-role={message.role}>
       <div
         className={
           mine

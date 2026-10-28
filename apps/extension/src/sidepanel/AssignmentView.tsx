@@ -2,9 +2,10 @@ import { HELP_LEVEL_LABELS, type StudentAssignment } from "@asterisk/shared";
 import { useState } from "react";
 import { Chat } from "./Chat";
 import { CheckWork } from "./CheckWork";
+import { Finish } from "./Finish";
 import type { Draft } from "./read-doc";
 
-type Tab = "ask" | "check";
+type Tab = "ask" | "check" | "finish";
 
 export function AssignmentView({
   token,
@@ -29,6 +30,7 @@ export function AssignmentView({
             [
               ["ask", "Ask"],
               ["check", "Check my work"],
+              ["finish", "Finish"],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -50,8 +52,10 @@ export function AssignmentView({
       </div>
       {tab === "ask" ? (
         <Chat token={token} assignment={assignment} draft={draft} onDraftChange={setDraft} onUnauthorized={onUnauthorized} />
-      ) : (
+      ) : tab === "check" ? (
         <CheckWork token={token} assignment={assignment} draft={draft} onDraftChange={setDraft} onUnauthorized={onUnauthorized} />
+      ) : (
+        <Finish token={token} assignment={assignment} onUnauthorized={onUnauthorized} />
       )}
     </div>
   );

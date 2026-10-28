@@ -1,8 +1,9 @@
 /**
  * End-to-end test of the BUILT extension (apps/extension/dist) in Playwright's
  * Chromium. Needs the dashboard running on VITE_API_BASE_URL (default
- * http://localhost:3000) with the seed loaded (join code QUAD24) and
- * AI_PROVIDER=FAKE.
+ * http://localhost:3000) with the seed loaded (join code QUAD24).
+ * Works with any AI_PROVIDER: on FAKE it's free; on META_API it's a real
+ * end-to-end run on Muse Spark (about 15 calls, roughly $0.10).
  *
  *   pnpm --filter @asterisk/extension build && pnpm --filter @asterisk/extension test:e2e
  *
@@ -23,6 +24,8 @@ const DIST = path.resolve(import.meta.dirname, "..", "dist");
 const STUDENT = `E2E Test ${Date.now().toString(36)}`;
 const DOC_URL = "https://docs.google.com/document/d/e2e-doc/edit";
 const DOC_TEXT = "1. x^2 - 5x + 6 = 0\n(x - 2)(x - 3) = 0\nx = 2";
+/** Real Muse Spark turns take 7–10 s (rubric check ~30 s); FAKE is instant. */
+const MODEL_TIMEOUT = 90_000;
 
 let context: BrowserContext;
 let panel: Page;
@@ -30,7 +33,7 @@ let userDataDir: string;
 let startedAt: Date;
 const studentApiBodies: string[] = [];
 
-describe("built extension", { timeout: 120_000 }, () => {
+describe("built extension", { timeout: 600_000 }, () => {
   before(async () => {
     startedAt = new Date();
     userDataDir = await mkdtemp(path.join(os.tmpdir(), "asterisk-e2e-"));
@@ -99,8 +102,8 @@ describe("built extension", { timeout: 120_000 }, () => {
     await box.fill("Can you just tell me both roots for problem 1?");
     await box.press("Enter");
 
-    await panel.getByText(/\[FAKE MODEL\]/).waitFor();
-    const sources = panel.getByRole("list", { name: "Sources" });
+    await panel.locator("[data-role=assistant]").first().waitFor({ timeout: MODEL_TIMEOUT });
+    const sources = panel.getByRole("list", { name: "Sources" }).first();
     await sources.waitFor();
     assert.match(await sources.innerText(), /Unit 4 Notes/);
   });
@@ -115,19 +118,37 @@ describe("built extension", { timeout: 120_000 }, () => {
     await box.press("Enter");
     const body = (await request).postDataJSON() as { message: string; draft?: string };
     assert.equal(body.draft, DOC_TEXT, "draft sent without the BOM");
-    await panel.getByText(/\[FAKE MODEL\]/).nth(1).waitFor();
+    await panel.locator("[data-role=assistant]").nth(1).waitFor({ timeout: MODEL_TIMEOUT });
   });
 
   it("checks the draft against the rubric without rewriting it", async () => {
     await panel.getByRole("tab", { name: "Check my work" }).click();
     await panel.getByRole("button", { name: "Check against the rubric" }).click();
     const feedback = panel.getByRole("region", { name: "Rubric feedback" });
-    await feedback.waitFor();
+    await feedback.waitFor({ timeout: MODEL_TIMEOUT });
     const text = await feedback.innerText();
-    assert.match(text, /8 \/ 12 points · practice only/);
+    assert.match(text, /\d+ \/ 12 points · practice only/);
     for (const criterion of ["Factoring", "Finds all roots", "Checks and interprets", "Explains reasoning"]) {
       assert.match(text, new RegExp(criterion));
     }
+    await panel.getByRole("tab", { name: "Ask" }).click();
+  });
+
+  it("answers the comprehension questions in writing and marks the assignment complete", async () => {
+    await panel.getByRole("tab", { name: "Finish" }).click();
+    const answers = panel.locator("form textarea");
+    await answers.first().waitFor();
+    assert.equal(await answers.count(), 3, "the seed's 3 approved questions");
+    for (let i = 0; i < 3; i++) {
+      await answers.nth(i).fill("Because a product is zero only when one of its factors is zero, so each factor gives a root to check.");
+    }
+    await panel.getByRole("button", { name: "Submit answers & mark complete" }).click();
+    await panel.getByText("Assignment complete").waitFor({ timeout: MODEL_TIMEOUT });
+    // Grades are for the teacher only.
+    assert.ok(
+      !studentApiBodies.some((b) => /"(understanding|rationale|score|misconception)"\s*:/.test(b)),
+      "no grade fields sent to the student",
+    );
     await panel.getByRole("tab", { name: "Ask" }).click();
   });
 
@@ -147,7 +168,11 @@ describe("built extension", { timeout: 120_000 }, () => {
   });
 });
 
-/** Removes only what this run created: its student (cascades to chats) and FAKE call logs since start. */
+/**
+ * Removes only what this run created: its student (cascades to chats, rubric
+ * checks, answers and the submission) and FAKE call logs since start. Real
+ * (META_API) call logs are kept as a usage record.
+ */
 async function deleteTestData() {
   if (!process.env.DATABASE_URL) {
     console.warn(`DATABASE_URL not set; remove student "${STUDENT}" by hand.`);

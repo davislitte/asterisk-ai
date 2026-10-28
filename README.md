@@ -36,7 +36,7 @@ Every runtime AI call goes to a Meta model, through one provider module (`packag
 | District-hosted mode | Muse Spark Open via Baseten / Modal | Config switch stubbed |
 | Photo of handwritten work → feedback | Muse Spark (vision) | _TBD_ |
 | Split a worksheet photo into problems | SAM 3.1 | _TBD_ |
-| Comprehension check: draft 3 questions for teacher approval, grade typed answers | Muse Spark (structured output) | _In progress_ |
+| Comprehension check: draft 3 questions for teacher approval, grade typed answers (with the misconception they show) | Muse Spark (structured output) | ✅ Live |
 | Class misconception report + reteach plan | Muse Spark, multi-step tool-calling agent | _TBD_ |
 | Off-topic / jailbreak classifier, answer-leak check | Muse Spark (structured output) | ✅ Live; measured by `pnpm eval` below |
 
@@ -66,6 +66,7 @@ Nothing produced by `FAKE` is shown in the demo or counted in eval results.
 - **Every student message is classified** as off-topic, asking for the answer, or trying to bypass the rules (jailbreak). Flags go to the teacher's live **Monitor** tab, along with every leak the guard blocked. Students get a gentle redirect, and the join screen tells them their teacher can see their chats.
 - **Rubric pre-check never rewrites student work.** Before submitting, a student can check their draft against the teacher's rubric. For each criterion they get a level, one thing that's working and one next step. Points come from the teacher's rubric, never from the model. The grader sees the answer keys on the server so it can judge accuracy. Its feedback then goes through a feedback-mode leak check before the student sees it: it may say an answer is wrong, but may not supply the correct value or corrected work.
 - **Reading the student's Google Doc only happens on their click.** The panel runs a same-origin read inside the Doc tab, using the Doc's own plain-text export and the student's own session. No Google credentials ever reach Asterisk. Drafts shared in chat are context for that question only and aren't saved with the chat.
+- **Comprehension grades go to the teacher only.** Before marking work complete, students answer the teacher's approved questions in writing. Muse Spark grades each answer from "none" to "strong" and names any misconception it shows. Students see only that their answers were sent, so the grader can't hand them answers. Each student can submit once.
 - **Grounding:** the tutor answers only from the teacher's sources, cites the section it used, and says so when the sources don't cover a question.
 
 ## Student privacy

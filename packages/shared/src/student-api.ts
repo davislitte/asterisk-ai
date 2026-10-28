@@ -113,5 +113,27 @@ export const RubricCheckResponse = z.object({
 });
 export type RubricCheckResponse = z.infer<typeof RubricCheckResponse>;
 
+// ---------- S7 + S8: comprehension check (text) and mark complete ----------
+
+/** Grades go to the teacher only, so this shape carries no scores. */
+export const FinishResponse = z.object({
+  endCheckEnabled: z.boolean(),
+  questions: z.array(z.object({ id: z.string(), text: z.string() })),
+  submittedAt: z.string().nullable(),
+});
+export type FinishResponse = z.infer<typeof FinishResponse>;
+
+export const FinishRequest = z.object({
+  answers: z
+    .array(
+      z.object({
+        questionId: z.uuid(),
+        answer: z.string().trim().min(1, "Answer every question").max(2_000, "Keep each answer under 2,000 characters"),
+      }),
+    )
+    .max(10),
+});
+export type FinishRequest = z.infer<typeof FinishRequest>;
+
 export const ApiError = z.object({ error: z.string() });
 export type ApiError = z.infer<typeof ApiError>;
