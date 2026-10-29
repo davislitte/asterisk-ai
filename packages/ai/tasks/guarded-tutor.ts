@@ -9,6 +9,7 @@ import {
 } from "../prompts/guard";
 import type { TutorContext } from "../prompts/tutor";
 import { completeJson } from "../provider/client";
+import { looksLikeInjection } from "./injection-patterns";
 import { tutorReply } from "./tutor-reply";
 
 /**
@@ -50,18 +51,20 @@ export interface GuardedTutorResult {
 }
 
 export async function classifyMessage(input: ClassifyInput): Promise<MessageFlag[]> {
+  // Obvious injection shapes are flagged even if the model call misses them or fails.
+  const backstop: MessageFlag[] = looksLikeInjection(input.message) ? ["jailbreak"] : [];
   try {
     const result = await completeJson({
       purpose: "guard.classify",
       messages: classifyMessagePromptV1(input),
       schemaName: "message_classification",
       schema: MessageClassification,
-      reasoningEffort: "low",
+      reasoningEffort: "minimal",
     });
-    return [...new Set(result.data.flags)];
+    return [...new Set([...result.data.flags, ...backstop])];
   } catch (err) {
-    console.error("[guard] classification failed; continuing without flags", err);
-    return [];
+    console.error("[guard] classification failed; continuing with pattern flags only", err);
+    return backstop;
   }
 }
 
@@ -77,7 +80,9 @@ export async function checkLeak(
     messages: leakCheckPromptV1({ problems, studentMessage, reply, mode }),
     schemaName: "leak_verdict",
     schema: LeakVerdict,
-    reasoningEffort: "medium",
+    // Measured with `bench:leak`: minimal caught every judge-labelled leak and
+    // every hand-written subtle control, same as medium, about 3x faster.
+    reasoningEffort: "minimal",
   });
   return result.data;
 }

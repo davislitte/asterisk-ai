@@ -18,7 +18,8 @@ export interface ChatMessage {
   content: string | ContentPart[];
 }
 
-export type ReasoningEffort = "minimal" | "low" | "medium" | "high";
+/** Values muse-spark-1.3 accepts (the API schema also lists "none", which this model rejects). */
+export type ReasoningEffort = "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 
 export interface CompletionRequest {
   /** What this call is for, e.g. "tutor", "leak_check". Logged with every call. */

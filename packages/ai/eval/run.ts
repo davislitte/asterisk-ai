@@ -12,11 +12,13 @@
  *
  * Options: --levels 1,2,3,4   --limit N   --concurrency N   --allow-fake
  *          --skip-baselines   --baseline-repeats N (default 4)   --controls-only
+ *          --reuse-baselines: take baseline rows from the newest saved run with the same model,
+ *            baseline prompt and judge, instead of paying to regenerate them
  *          --max-usd N (default 10): hard cap from real token usage; stops starting new runs
  * Refuses to run on the FAKE stub unless --allow-fake, and never saves FAKE results.
  */
 import type { HelpLevel, MessageFlag } from "@asterisk/shared";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { BASELINE_PROMPT_VERSION, type BaselineKind, baselinePromptV1 } from "../prompts/baseline";
@@ -40,6 +42,7 @@ const { values: args } = parseArgs({
     "allow-fake": { type: "boolean", default: false },
     "controls-only": { type: "boolean", default: false },
     "skip-baselines": { type: "boolean", default: false },
+    "reuse-baselines": { type: "boolean", default: false },
     "baseline-repeats": { type: "string", default: "4" },
     // Hard spending cap per eval run, from real token usage as it accumulates.
     "max-usd": { type: "string", default: "10" },
@@ -224,6 +227,30 @@ async function runControls() {
   };
 }
 
+/**
+ * Baseline rows from the newest saved run that has them, only if that run used
+ * the same model, baseline prompt and judge (so its numbers still apply).
+ */
+async function loadSavedBaselines(): Promise<{ file: string; rows: BaselineRow[] }> {
+  const dir = path.join(import.meta.dirname, "results");
+  const files = (await readdir(dir)).filter((f) => f.endsWith(`-${config.provider}.json`)).sort().reverse();
+  for (const file of files) {
+    const saved = JSON.parse(await readFile(path.join(dir, file), "utf8")) as {
+      summary: string;
+      config: { model: string };
+      baselineRows?: BaselineRow[];
+    };
+    if (!saved.baselineRows?.length) continue;
+    const sameSetup =
+      saved.config.model === config.model &&
+      saved.summary.includes(BASELINE_PROMPT_VERSION) &&
+      saved.summary.includes(`judge ${EVAL_JUDGE_PROMPT_VERSION}`);
+    if (!sameSetup) break;
+    return { file, rows: saved.baselineRows };
+  }
+  throw new Error("No saved run with baselines for this model, baseline prompt and judge. Run without --reuse-baselines.");
+}
+
 async function main() {
   const jobs = levels.flatMap((level) => cases.map((c) => ({ c, level })));
   console.info(
@@ -240,7 +267,13 @@ async function main() {
   const ok = rows.filter((r) => !r.error);
 
   let baselineRows: BaselineRow[] = [];
-  if (!args["skip-baselines"]) {
+  let baselineNote = "";
+  if (args["reuse-baselines"]) {
+    const reused = await loadSavedBaselines();
+    baselineRows = reused.rows;
+    baselineNote = `Baselines reused from ${reused.file} (same model, ${BASELINE_PROMPT_VERSION}, judge ${EVAL_JUDGE_PROMPT_VERSION}).`;
+    console.info(baselineNote);
+  } else if (!args["skip-baselines"]) {
     const repeats = Math.max(1, Number(args["baseline-repeats"]));
     const baselineJobs = (["plain", "naive"] as const).flatMap((kind) =>
       cases.flatMap((c) => Array.from({ length: repeats }, (_, repeat) => ({ kind, c, repeat }))),
@@ -310,6 +343,7 @@ async function main() {
     "",
     `Classifier recall: ${recall("answer_seeking")} · ${recall("jailbreak")} · ${recall("off_topic")} · control questions wrongly flagged answer-seeking: ${falseAnswerSeeking}`,
     `Grader controls: ${controls.lines.join(" ")}${controls.misses.length ? ` Misses: ${controls.misses.join("; ")}.` : ""}`,
+    ...(baselineNote ? [baselineNote] : []),
     `Errors: ${rows.length - ok.length + baselineRows.length - baselineOk.length} runs · ${modelCalls} model calls (${failedCalls} failed) · ${((Date.now() - started) / 1000).toFixed(0)}s`,
     `Tokens: ${tokensIn.toLocaleString("en-US")} in / ${tokensOut.toLocaleString("en-US")} out (incl. reasoning) · ≈ $${spentUsd().toFixed(2)} at list price`,
   ].join("\n");

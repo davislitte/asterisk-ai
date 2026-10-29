@@ -8,7 +8,7 @@ export async function tutorReply(ctx: TutorContext): Promise<TutorReply> {
     messages: tutorPromptV1(ctx),
     schemaName: "tutor_reply",
     schema: TutorReply,
-    reasoningEffort: "low",
+    reasoningEffort: "minimal",
   });
   const known = new Set(ctx.sources.map((s) => s.label));
   return {

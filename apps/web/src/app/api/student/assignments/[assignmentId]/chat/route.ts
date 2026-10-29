@@ -87,9 +87,10 @@ export async function POST(request: Request, ctx: RouteContext<"/api/student/ass
 }
 
 async function chatTurn(student: Student, assignment: StudentAssignment, input: ChatRequest, receivedAt: Date) {
-  const [chunks, history] = await Promise.all([
+  const [chunks, history, answerKeys] = await Promise.all([
     listGroundingChunks(assignment.id),
     listChatHistory(student.id, assignment.id, PROMPT_HISTORY_TURNS),
+    getAnswerKeysForLeakCheck(student.classId, assignment.id),
   ]);
   const sources: TutorSource[] = chunks.map((c, i) => ({
     label: `S${i + 1}`,
@@ -112,7 +113,7 @@ async function chatTurn(student: Student, assignment: StudentAssignment, input: 
       // S4: the student's draft, sent only when they chose to share it. Used as
       // context for this turn; not stored with the chat.
       draft: input.draft,
-      answerKeys: await getAnswerKeysForLeakCheck(student.classId, assignment.id),
+      answerKeys,
     });
   } catch (err) {
     return aiUnavailable(err, "chat");

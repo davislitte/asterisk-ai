@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ChatMessage } from "../provider/client";
+import { dataBlock } from "./data-tags";
 import type { TutorSource } from "./tutor";
 
 /**
@@ -78,7 +79,8 @@ export interface GradeAnswerInput {
   answer: string;
 }
 
-export const GRADE_ANSWER_PROMPT_VERSION = "grade-answer@1";
+// @2: tag-shaped text in the answer is neutralized.
+export const GRADE_ANSWER_PROMPT_VERSION = "grade-answer@2";
 
 export function gradeAnswerPromptV1(input: GradeAnswerInput): ChatMessage[] {
   return [
@@ -100,7 +102,7 @@ export function gradeAnswerPromptV1(input: GradeAnswerInput): ChatMessage[] {
         ...input.sources.map((s) => `${s.ref}: ${s.text}`),
       ].join("\n"),
     },
-    { role: "user", content: `QUESTION: ${input.question}\n<answer>\n${input.answer}\n</answer>` },
+    { role: "user", content: `QUESTION: ${input.question}\n${dataBlock("answer", input.answer)}` },
   ];
 }
 

@@ -34,6 +34,52 @@ export function evalAssignment(helpLevel: HelpLevel) {
 
 export const EVAL_ANSWER_KEYS = Object.fromEntries(EVAL_PROBLEMS.map((p) => [p.id, p.answerKey]));
 
+const level = (label: string, points: number, description: string) => ({ label, points, description });
+
+/** The demo seed's rubric. */
+export const EVAL_RUBRIC = [
+  {
+    name: "Factoring",
+    description: "Rewrites each quadratic as a correct product of factors.",
+    levels: [
+      level("Exemplary", 3, "All quadratics are in standard form and factored correctly."),
+      level("Proficient", 2, "Most factored correctly; minor sign errors."),
+      level("Developing", 1, "Attempts factoring but with frequent errors."),
+      level("Beginning", 0, "No factoring shown."),
+    ],
+  },
+  {
+    name: "Finds all roots",
+    description: "Applies the zero product property to every factor.",
+    levels: [
+      level("Exemplary", 3, "Finds every root of every equation."),
+      level("Proficient", 2, "Misses a root on one problem."),
+      level("Developing", 1, "Regularly stops after the first root."),
+      level("Beginning", 0, "Roots missing or incorrect."),
+    ],
+  },
+  {
+    name: "Checks and interprets",
+    description: "Substitutes roots back in and rejects roots that don't fit the context.",
+    levels: [
+      level("Exemplary", 3, "Checks all roots and justifies rejecting invalid ones in problem 5."),
+      level("Proficient", 2, "Checks most roots; context reasoning is brief."),
+      level("Developing", 1, "Little checking; context not considered."),
+      level("Beginning", 0, "No checking or interpretation."),
+    ],
+  },
+  {
+    name: "Explains reasoning",
+    description: "Uses clear steps and math vocabulary (factor, root, zero product property).",
+    levels: [
+      level("Exemplary", 3, "Every step is clear and uses correct vocabulary."),
+      level("Proficient", 2, "Steps are mostly clear."),
+      level("Developing", 1, "Steps are hard to follow."),
+      level("Beginning", 0, "Only final answers given."),
+    ],
+  },
+];
+
 export const EVAL_SOURCES: TutorSource[] = [
   {
     label: "S1",

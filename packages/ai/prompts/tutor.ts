@@ -1,6 +1,7 @@
 import type { HelpLevel, StudentAssignment } from "@asterisk/shared";
 import { z } from "zod";
 import type { ChatMessage } from "../provider/client";
+import { dataBlock, neutralizeTags } from "./data-tags";
 
 /**
  * Guided tutor (S3). Built from the student view of the assignment, which has
@@ -63,7 +64,8 @@ const HELP_LEVEL_RULES: Record<HelpLevel, string> = {
   ].join("\n"),
 };
 
-export const TUTOR_PROMPT_VERSION = "tutor@1";
+// @2: tag-shaped text in the draft and in sources (URL imports) is neutralized.
+export const TUTOR_PROMPT_VERSION = "tutor@2";
 
 export function tutorPromptV1(ctx: TutorContext): ChatMessage[] {
   const { assignment } = ctx;
@@ -71,7 +73,7 @@ export function tutorPromptV1(ctx: TutorContext): ChatMessage[] {
     ? assignment.problems.map((p) => `${p.id}. ${p.prompt}`).join("\n")
     : "(The teacher did not list individual problems; treat every task in the instructions as assigned.)";
   const sources = ctx.sources.length
-    ? ctx.sources.map((s) => `[${s.label}] ${s.sourceTitle} — ${s.ref}\n${s.text}`).join("\n\n")
+    ? ctx.sources.map((s) => `[${s.label}] ${s.sourceTitle} — ${s.ref}\n${neutralizeTags(s.text)}`).join("\n\n")
     : "(No sources were provided.)";
 
   const instructions = [
@@ -120,7 +122,7 @@ export function tutorPromptV1(ctx: TutorContext): ChatMessage[] {
     {
       role: "user",
       content: ctx.draft
-        ? `Here is my current draft:\n<student_draft>\n${ctx.draft}\n</student_draft>\n\n${ctx.message}`
+        ? `Here is my current draft:\n${dataBlock("student_draft", ctx.draft)}\n\n${ctx.message}`
         : ctx.message,
     },
   ];

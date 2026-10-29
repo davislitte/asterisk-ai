@@ -1,6 +1,7 @@
 import type { RubricLevel } from "@asterisk/shared";
 import { z } from "zod";
 import type { ChatMessage } from "../provider/client";
+import { dataBlock } from "./data-tags";
 import type { LeakCheckProblem } from "./guard";
 
 /**
@@ -37,7 +38,10 @@ export const RubricCheckOutput = z.strictObject({
 });
 export type RubricCheckOutput = z.infer<typeof RubricCheckOutput>;
 
-export const RUBRIC_CHECK_PROMPT_VERSION = "rubric-check@1";
+// @2: grade correctness against the answer keys before choosing levels, so a
+// wrong root isn't counted as "found" (measured with `bench:rubric`); tag-shaped
+// text in the draft is neutralized.
+export const RUBRIC_CHECK_PROMPT_VERSION = "rubric-check@2";
 
 export function rubricCheckPromptV1(input: RubricCheckInput): ChatMessage[] {
   const criteria = input.criteria
@@ -57,6 +61,8 @@ export function rubricCheckPromptV1(input: RubricCheckInput): ChatMessage[] {
       role: "instructions",
       content: [
         `You give a grade ${input.assignment.gradeLevel} ${input.assignment.subject} student practice feedback on their draft BEFORE they submit, using their teacher's rubric.`,
+        "",
+        "First, silently compare every answer in the draft with that problem's ANSWER below. A value that doesn't match is incorrect, not found, and a problem showing only some of its roots has missed roots. Base each level on this, not on how many values were written.",
         "",
         "For EACH criterion: pick the single level that best matches the draft (use the level label exactly as written), then write:",
         "- strengths: one sentence on what the draft already does well for this criterion (or \"Not there yet\" if nothing).",
@@ -86,6 +92,6 @@ export function rubricCheckPromptV1(input: RubricCheckInput): ChatMessage[] {
         criteria,
       ].join("\n"),
     },
-    { role: "user", content: `<student_draft>\n${input.draft}\n</student_draft>` },
+    { role: "user", content: dataBlock("student_draft", input.draft) },
   ];
 }

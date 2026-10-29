@@ -36,7 +36,9 @@ async function grade(input: RubricCheckInput): Promise<RubricCheckOutput> {
     messages: rubricCheckPromptV1(input),
     schemaName: "rubric_check",
     schema: Output,
-    reasoningEffort: "medium",
+    // Measured with `bench:rubric` (rubric-check@2): minimal grades as accurately as
+    // medium on drafts with known levels, in about a fifth of the time.
+    reasoningEffort: "minimal",
   });
   return result.data;
 }
