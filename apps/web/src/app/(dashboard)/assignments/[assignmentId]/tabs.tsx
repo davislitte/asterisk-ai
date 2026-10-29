@@ -13,12 +13,13 @@ export function AssignmentTabs({ assignmentId }: { assignmentId: string }) {
     { href: `${base}/rubric`, label: "Rubric" },
     { href: `${base}/questions`, label: "Check questions" },
     { href: `${base}/monitor`, label: "Monitor" },
+    { href: `${base}/report`, label: "Report" },
   ];
 
   return (
-    <nav aria-label="Assignment sections" className="flex gap-1 border-b">
+    <nav aria-label="Assignment sections" className="flex gap-1 overflow-x-auto border-b">
       {tabs.map((tab) => {
-        const active = pathname === tab.href;
+        const active = tab.href === base ? pathname === base : pathname.startsWith(tab.href);
         return (
           <Link
             key={tab.href}

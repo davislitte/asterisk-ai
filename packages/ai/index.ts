@@ -5,6 +5,8 @@ export {
   type CompletionResult,
   type ContentPart,
   type ReasoningEffort,
+  type ToolCall,
+  type ToolDefinition,
   complete,
   completeJson,
 } from "./provider/client";
@@ -28,6 +30,16 @@ export type { RubricCheckCriterion, RubricCheckInput } from "./prompts/rubric-ch
 export { type RubricCheckCriterionResult, type RubricCheckResultData, rubricCheck } from "./tasks/rubric-check";
 export { UNDERSTANDING_LEVELS } from "./prompts/comprehension";
 export { type GradedAnswer, generateCheckQuestions, gradeComprehensionAnswer } from "./tasks/comprehension";
+export { type AgentStep, type AgentTool, runToolLoop } from "./tasks/tool-loop";
+export { CLASS_REPORT_PROMPT_VERSION, type ClassReportContext } from "./prompts/class-report";
+export {
+  type ClassReport,
+  type ClassReportData,
+  type ClassReportRun,
+  type VerifiedMisconception,
+  canonicalLabel,
+  runClassReport,
+} from "./tasks/class-report";
 export {
   type ModelCallLogEntry,
   type ModelCallLogger,

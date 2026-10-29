@@ -20,6 +20,15 @@ export interface FakeRequest {
   messages?: ChatMessage[];
   /** Present when the caller asked for structured output. */
   schema?: JsonSchema;
+  /** The caller offered tools; a fixture made with fakeToolCalls() then answers with tool calls. */
+  hasTools?: boolean;
+}
+
+const TOOL_CALLS = Symbol("fakeToolCalls");
+
+/** Fixture value that makes the stub answer with tool calls instead of text. */
+export function fakeToolCalls(calls: { name: string; arguments: Record<string, unknown> }[]): object {
+  return { [TOOL_CALLS]: calls };
 }
 
 let counter = 0;
@@ -33,7 +42,35 @@ export function fakeChatCompletion(req: FakeRequest): unknown {
 
   const entry = FAKE_FIXTURES[req.purpose];
   const fixture = typeof entry === "function" ? entry(req.messages ?? []) : entry;
-  const content = fixture
+  counter += 1;
+
+  const calls = fixture && typeof fixture === "object" ? (fixture as Record<symbol, unknown>)[TOOL_CALLS] : undefined;
+  if (Array.isArray(calls) && req.hasTools) {
+    return {
+      id: `fake-${counter}`,
+      object: "chat.completion",
+      created: Math.floor(Date.now() / 1000),
+      model: FAKE_MODEL_ID,
+      choices: [
+        {
+          index: 0,
+          finish_reason: "tool_calls",
+          message: {
+            role: "assistant",
+            content: null,
+            tool_calls: (calls as { name: string; arguments: unknown }[]).map((c, i) => ({
+              id: `fake-call-${counter}-${i}`,
+              type: "function",
+              function: { name: c.name, arguments: JSON.stringify(c.arguments) },
+            })),
+          },
+        },
+      ],
+      usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+    };
+  }
+
+  const content = fixture && !Array.isArray(calls)
     ? typeof fixture === "string"
       ? fixture
       : JSON.stringify(fixture)
@@ -41,7 +78,6 @@ export function fakeChatCompletion(req: FakeRequest): unknown {
       ? JSON.stringify(sampleFromSchema(req.schema, req.purpose))
       : `[FAKE MODEL] Canned response for "${req.purpose}". This text did not come from a model.`;
 
-  counter += 1;
   return {
     id: `fake-${counter}`,
     object: "chat.completion",

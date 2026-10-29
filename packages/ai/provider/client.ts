@@ -9,14 +9,29 @@ export type ContentPart =
   | { type: "text"; text: string }
   | { type: "image_url"; image_url: { url: string } };
 
+/** A function call the model asked for. `arguments` is the raw JSON string from the API. */
+export interface ToolCall {
+  id: string;
+  name: string;
+  arguments: string;
+}
+
+/** A function the model may call (Chat Completions `tools`, https://dev.meta.ai/docs/tool-calling). */
+export interface ToolDefinition {
+  name: string;
+  description: string;
+  /** JSON Schema for the arguments object. */
+  parameters: Record<string, unknown>;
+}
+
 /**
  * Provider-neutral message. `instructions` becomes `developer` on the Meta Model
  * API and `system` on self-hosted open-weight servers.
  */
-export interface ChatMessage {
-  role: "instructions" | "user" | "assistant";
-  content: string | ContentPart[];
-}
+export type ChatMessage =
+  | { role: "instructions" | "user"; content: string | ContentPart[] }
+  | { role: "assistant"; content: string | ContentPart[]; toolCalls?: ToolCall[] }
+  | { role: "tool"; toolCallId: string; content: string };
 
 /** Values muse-spark-1.3 accepts (the API schema also lists "none", which this model rejects). */
 export type ReasoningEffort = "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
@@ -32,10 +47,14 @@ export interface CompletionRequest {
   maxAttempts?: number;
   /** Force a provider for this call instead of AI_PROVIDER. */
   provider?: AiProvider;
+  /** Functions the model may call. The API only supports tool_choice "auto". */
+  tools?: ToolDefinition[];
 }
 
 export interface CompletionResult {
   text: string;
+  /** Empty unless the request had `tools` and the model chose to call some. */
+  toolCalls: ToolCall[];
   finishReason: string | null;
   provider: AiProvider;
   model: string;
@@ -54,7 +73,18 @@ const ChatCompletionResponse = z.object({
     .array(
       z.object({
         finish_reason: z.string().nullable().optional(),
-        message: z.object({ content: z.string().nullable().optional() }),
+        message: z.object({
+          content: z.string().nullable().optional(),
+          tool_calls: z
+            .array(
+              z.object({
+                id: z.string(),
+                function: z.object({ name: z.string(), arguments: z.string() }),
+              }),
+            )
+            .nullable()
+            .optional(),
+        }),
       }),
     )
     .min(1),
@@ -83,10 +113,29 @@ function backoffMs(attempt: number): number {
 }
 
 function toWireMessages(messages: ChatMessage[], config: ProviderConfig) {
-  return messages.map((m) => ({
-    role: m.role === "instructions" ? config.instructionRole : m.role,
-    content: m.content,
-  }));
+  return messages.map((m) => {
+    switch (m.role) {
+      case "instructions":
+        return { role: config.instructionRole, content: m.content };
+      case "tool":
+        return { role: "tool", tool_call_id: m.toolCallId, content: m.content };
+      case "assistant":
+        // The assistant turn that asked for tools must be sent back with its tool_calls.
+        return m.toolCalls?.length
+          ? {
+              role: "assistant",
+              content: m.content || null,
+              tool_calls: m.toolCalls.map((c) => ({
+                id: c.id,
+                type: "function",
+                function: { name: c.name, arguments: c.arguments },
+              })),
+            }
+          : { role: "assistant", content: m.content };
+      default:
+        return { role: m.role, content: m.content };
+    }
+  });
 }
 
 async function readErrorMessage(res: Response): Promise<string> {
@@ -116,6 +165,12 @@ async function chatCompletion(
     body.reasoning_effort = req.reasoningEffort;
   }
   if (req.maxCompletionTokens) body.max_completion_tokens = req.maxCompletionTokens;
+  if (req.tools?.length) {
+    body.tools = req.tools.map((t) => ({
+      type: "function",
+      function: { name: t.name, description: t.description, parameters: t.parameters },
+    }));
+  }
   if (responseFormat) {
     body.response_format = {
       type: "json_schema",
@@ -170,7 +225,12 @@ async function chatCompletion(
     let payload: unknown;
     if (config.provider === "FAKE") {
       // Dev-only test stub: canned response built locally, no network, no model.
-      payload = fakeChatCompletion({ purpose: req.purpose, messages: req.messages, schema: responseFormat?.schema });
+      payload = fakeChatCompletion({
+        purpose: req.purpose,
+        messages: req.messages,
+        schema: responseFormat?.schema,
+        hasTools: Boolean(req.tools?.length),
+      });
     } else {
       let res: Response;
       try {
@@ -223,6 +283,11 @@ async function chatCompletion(
     const choice = data.choices[0]!;
     const result: CompletionResult = {
       text: choice.message.content ?? "",
+      toolCalls: (choice.message.tool_calls ?? []).map((c) => ({
+        id: c.id,
+        name: c.function.name,
+        arguments: c.function.arguments,
+      })),
       finishReason: choice.finish_reason ?? null,
       provider: config.provider,
       model: data.model ?? config.model,

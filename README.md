@@ -37,7 +37,7 @@ Every runtime AI call goes to a Meta model, through one provider module (`packag
 | Photo of handwritten work → feedback | Muse Spark (vision) | _TBD_ |
 | Split a worksheet photo into problems | SAM 3.1 | _TBD_ |
 | Comprehension check: draft 3 questions for teacher approval, grade typed answers (with the misconception they show) | Muse Spark (structured output) | ✅ Live |
-| Class misconception report + reteach plan | Muse Spark, multi-step tool-calling agent | _TBD_ |
+| Class misconception report + reteach plan | Muse Spark as a tool-calling agent, then one recount call per misconception | ✅ Live |
 | Off-topic / jailbreak classifier, answer-leak check | Muse Spark (structured output) | ✅ Live; measured by `pnpm eval` below |
 
 We use `muse-spark-1.3`, not the cheaper `-contributor` variant, because that variant uses request data for training and our users are minors.
@@ -69,6 +69,19 @@ Nothing produced by `FAKE` is shown in the demo or counted in eval results.
 - **Reading the student's Google Doc only happens on their click.** The panel runs a same-origin read inside the Doc tab, using the Doc's own plain-text export and the student's own session. No Google credentials ever reach Asterisk. Drafts shared in chat are context for that question only and aren't saved with the chat.
 - **Comprehension grades go to the teacher only.** Before marking work complete, students answer the teacher's approved questions in writing. Muse Spark grades each answer from "none" to "strong" and names any misconception it shows. Students see only that their answers were sent, so the grader can't hand them answers. Each student can submit once.
 - **Grounding:** the tutor answers only from the teacher's sources, cites the section it used, and says so when the sources don't cover a question.
+
+## Class report: a misconception agent
+
+The **Report** tab answers the teacher's real question: where did understanding break down, and what do I reteach tomorrow? ([`class-report.ts`](packages/ai/tasks/class-report.ts), [`tool-loop.ts`](packages/ai/tasks/tool-loop.ts))
+
+1. **Investigate.** Muse Spark gets six read-only tools over the class's work: a class overview, one student's work, a search across every draft, chat and answer, every student's level on one rubric criterion, every answer to one comprehension question, and which note sections the tutor cited most. It decides what to call. On the demo class it typically reads the overview, the weak rubric criteria and comprehension questions, searches for the wording of each suspected mistake, then opens a few students to confirm, all in 13–14 calls. Arguments are validated with zod before a tool runs, errors go back to the model as tool results, and the loop has a budget of 8 turns and 16 calls.
+2. **Write.** A structured call turns the investigation into misconceptions with evidence, the note sections behind the most questions, a reteach lesson of 45 minutes or less that uses *new* example problems, an exit ticket and a short note per struggling student.
+3. **Recount.** The investigation samples students; teachers need counts. For each misconception, a separate Muse Spark call goes through every student's work and lists each student it applies to, with a quote as proof. These calls run in parallel.
+4. **Verify.** Nothing reaches the teacher unchecked. Student labels must exist, every quote must appear word for word in that student's own work, and a recounted student counts only if their quote matches. Misconceptions left with no supported students are dropped. The page shows what verification removed and what the recount added.
+
+Students appear to the model only as "Student 01", "Student 02" and so on; names are mapped back on the server. On the 22-student demo class, the recount brought "keeps only the positive square root" from 6 students to 12, the true count, with no false positives. A full report took 24 s and cost $0.16.
+
+Each student also gets a page with their latest rubric pre-check (and how it changed since their first), comprehension answers with the grader's reasoning, and their conversation with Asterisk with flags.
 
 ## Cost protection
 
@@ -115,6 +128,12 @@ Requirements: Node 24+, pnpm, a Supabase project, and a [Meta Model API](https:/
 
    ```bash
    pnpm db:seed
+   ```
+
+   Optionally, give the class something for the reports to analyse. This adds 22 made-up students with chats, rubric pre-checks and comprehension answers on the quadratics assignment (no model calls; all text is synthetic):
+
+   ```bash
+   pnpm db:seed:work
    ```
 
 4. Check that Muse Spark answers:
