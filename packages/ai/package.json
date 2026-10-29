@@ -9,7 +9,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test \"provider/**/*.test.ts\" \"tasks/**/*.test.ts\"",
+    "test": "node --import tsx --test \"provider/**/*.test.ts\" \"tasks/**/*.test.ts\" \"eval/**/*.test.ts\"",
     "smoke": "node --env-file-if-exists=../../.env.local --import tsx scripts/smoke.ts",
     "eval": "node --env-file-if-exists=../../.env.local --import tsx eval/run.ts",
     "bench:leak": "node --env-file-if-exists=../../.env.local --import tsx eval/leak-check-bench.ts",

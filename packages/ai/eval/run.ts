@@ -10,8 +10,13 @@
  * rules (plain chatbot, and a typical "don't just give the answers" tutor
  * prompt), graded by the same judge, to show what the rules add.
  *
+ * Grounding: questions the teacher's notes don't cover (and some they do) run
+ * through the same pipeline; an eval-only judge lists anything in each reply
+ * that isn't in the notes (see eval/grounding.ts).
+ *
  * Options: --levels 1,2,3,4   --limit N   --concurrency N   --allow-fake
  *          --skip-baselines   --baseline-repeats N (default 4)   --controls-only
+ *          --skip-grounding   --grounding-only
  *          --reuse-baselines: take baseline rows from the newest saved run with the same model,
  *            baseline prompt and judge, instead of paying to regenerate them
  *          --max-usd N (default 10): hard cap from real token usage; stops starting new runs
@@ -32,6 +37,7 @@ import { setModelCallLogger } from "../provider/logging";
 import { checkLeak, guardedTutorReply } from "../tasks/guarded-tutor";
 import { type EvalCase, EVAL_CASES } from "./cases";
 import { GRADER_CONTROLS } from "./controls";
+import { GROUNDING_JUDGE_PROMPT_VERSION, runGroundingEval } from "./grounding";
 import { EVAL_ANSWER_KEYS, EVAL_PROBLEMS, EVAL_SOURCES, evalAssignment } from "./fixture";
 
 const { values: args } = parseArgs({
@@ -43,6 +49,8 @@ const { values: args } = parseArgs({
     "controls-only": { type: "boolean", default: false },
     "skip-baselines": { type: "boolean", default: false },
     "reuse-baselines": { type: "boolean", default: false },
+    "skip-grounding": { type: "boolean", default: false },
+    "grounding-only": { type: "boolean", default: false },
     "baseline-repeats": { type: "string", default: "4" },
     // Hard spending cap per eval run, from real token usage as it accumulates.
     "max-usd": { type: "string", default: "10" },
@@ -201,6 +209,31 @@ async function pool<T, R>(items: T[], size: number, fn: (item: T) => Promise<R>)
   return results;
 }
 
+const groundingPool = <T, R>(items: T[], fn: (item: T) => Promise<R>) => pool(items, concurrency, fn);
+
+async function grounding() {
+  console.info("Grounding (does the tutor teach only from the notes?):");
+  return runGroundingEval({
+    levels,
+    pool: groundingPool,
+    baselines: !args["skip-baselines"],
+    baselineRepeats: Math.max(1, Math.min(2, Number(args["baseline-repeats"]))),
+  });
+}
+
+async function save(name: string, data: object, markdown: { file: string; text: string }) {
+  if (isFake) {
+    console.info("⚠️  FAKE STUB RUN — results not saved.");
+    return;
+  }
+  const dir = path.join(import.meta.dirname, "results");
+  await mkdir(dir, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  await writeFile(path.join(dir, `${stamp}${name}-${config.provider}.json`), JSON.stringify(data, null, 2));
+  await writeFile(path.join(dir, markdown.file), `${markdown.text}\n`);
+  console.info(`Saved eval/results/${stamp}${name}-${config.provider}.json and eval/results/${markdown.file}`);
+}
+
 const pct = (n: number, d: number) => (d === 0 ? "—" : `${((100 * n) / d).toFixed(1)}%`);
 
 /** Do the graders catch replies written to leak, and pass replies written to be safe? */
@@ -262,6 +295,23 @@ async function main() {
   for (const l of controls.lines) console.info(`  ${l}`);
   for (const m of controls.misses) console.info(`  ✗ ${m}`);
   if (args["controls-only"]) return;
+  if (args["grounding-only"]) {
+    const g = await grounding();
+    const text = [
+      `Asterisk grounding eval · ${new Date().toISOString().slice(0, 10)} · ${config.provider} ${config.model}`,
+      `Prompts: ${TUTOR_PROMPT_VERSION}, ${LEAK_CHECK_PROMPT_VERSION}, ${CLASSIFY_PROMPT_VERSION}, ${BASELINE_PROMPT_VERSION}; judge ${GROUNDING_JUDGE_PROMPT_VERSION}`,
+      "",
+      ...g.lines,
+      "",
+      `Grader controls: ${g.controls.line}${g.controls.misses.length ? ` Misses: ${g.controls.misses.join("; ")}.` : ""}`,
+      `Errors: ${g.errors} runs · ${modelCalls} model calls (${failedCalls} failed) · ${((Date.now() - started) / 1000).toFixed(0)}s`,
+      `Tokens: ${tokensIn.toLocaleString("en-US")} in / ${tokensOut.toLocaleString("en-US")} out · ≈ $${spentUsd().toFixed(2)} at list price`,
+    ].join("\n");
+    console.info(`\n${text}\n`);
+    printOutside(g.outside);
+    await save("-grounding", { summary: text, config: { provider: config.provider, model: config.model }, groundingRows: g.rows, groundingBaselineRows: g.baselineRows }, { file: "grounding-latest.md", text });
+    return;
+  }
   console.info("Adversarial cases:");
   const rows = await pool(jobs, concurrency, ({ c, level }) => runOne(c, level));
   const ok = rows.filter((r) => !r.error);
@@ -282,6 +332,7 @@ async function main() {
     baselineRows = await pool(baselineJobs, concurrency, ({ kind, c, repeat }) => runBaseline(kind, c, repeat));
   }
   const baselineOk = baselineRows.filter((r) => !r.error);
+  const g = args["skip-grounding"] ? null : await grounding();
 
   const lines: string[] = [];
   lines.push("| Help level | Runs | Raw tutor leak rate | Guarded leak rate | Redrafted | Fallback |");
@@ -336,15 +387,25 @@ async function main() {
 
   const summary = [
     `Asterisk answer-leak eval · ${new Date().toISOString().slice(0, 10)} · ${config.provider} ${config.model}`,
-    `Prompts: ${TUTOR_PROMPT_VERSION}, ${LEAK_CHECK_PROMPT_VERSION}, ${CLASSIFY_PROMPT_VERSION}, ${BASELINE_PROMPT_VERSION}; judge ${EVAL_JUDGE_PROMPT_VERSION}`,
+    `Prompts: ${TUTOR_PROMPT_VERSION}, ${LEAK_CHECK_PROMPT_VERSION}, ${CLASSIFY_PROMPT_VERSION}, ${BASELINE_PROMPT_VERSION}; judge ${EVAL_JUDGE_PROMPT_VERSION}${g ? `, ${GROUNDING_JUDGE_PROMPT_VERSION}` : ""}`,
     "",
     ...comparison,
     ...lines,
     "",
+    ...(g
+      ? [
+          "Grounding: questions the notes don't cover, and questions they do.",
+          "",
+          ...g.lines,
+          "",
+          `Grounding judge controls: ${g.controls.line}${g.controls.misses.length ? ` Misses: ${g.controls.misses.join("; ")}.` : ""}`,
+          "",
+        ]
+      : []),
     `Classifier recall: ${recall("answer_seeking")} · ${recall("jailbreak")} · ${recall("off_topic")} · control questions wrongly flagged answer-seeking: ${falseAnswerSeeking}`,
     `Grader controls: ${controls.lines.join(" ")}${controls.misses.length ? ` Misses: ${controls.misses.join("; ")}.` : ""}`,
     ...(baselineNote ? [baselineNote] : []),
-    `Errors: ${rows.length - ok.length + baselineRows.length - baselineOk.length} runs · ${modelCalls} model calls (${failedCalls} failed) · ${((Date.now() - started) / 1000).toFixed(0)}s`,
+    `Errors: ${rows.length - ok.length + baselineRows.length - baselineOk.length + (g?.errors ?? 0)} runs · ${modelCalls} model calls (${failedCalls} failed) · ${((Date.now() - started) / 1000).toFixed(0)}s`,
     `Tokens: ${tokensIn.toLocaleString("en-US")} in / ${tokensOut.toLocaleString("en-US")} out (incl. reasoning) · ≈ $${spentUsd().toFixed(2)} at list price`,
   ].join("\n");
 
@@ -355,16 +416,25 @@ async function main() {
     for (const l of leaks) console.info(`  [L${l.helpLevel} ${l.caseId}] ${l.judgeReason}`);
   }
 
-  if (isFake) {
-    console.info("⚠️  FAKE STUB RUN — results not saved.");
-    return;
-  }
-  const dir = path.join(import.meta.dirname, "results");
-  await mkdir(dir, { recursive: true });
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  await writeFile(path.join(dir, `${stamp}-${config.provider}.json`), JSON.stringify({ summary, config: { provider: config.provider, model: config.model }, rows, baselineRows }, null, 2));
-  await writeFile(path.join(dir, "latest.md"), `${summary}\n`);
-  console.info(`Saved eval/results/${stamp}-${config.provider}.json and eval/results/latest.md`);
+  if (g) printOutside(g.outside);
+
+  await save(
+    "",
+    {
+      summary,
+      config: { provider: config.provider, model: config.model },
+      rows,
+      baselineRows,
+      ...(g ? { groundingRows: g.rows, groundingBaselineRows: g.baselineRows } : {}),
+    },
+    { file: "latest.md", text: summary },
+  );
+}
+
+function printOutside(rows: { helpLevel: unknown; caseId: string; outsideClaims: string[] }[]) {
+  if (!rows.length) return;
+  console.info("Asterisk replies the grounding judge says used outside knowledge:");
+  for (const r of rows) console.info(`  [L${String(r.helpLevel)} ${r.caseId}] ${r.outsideClaims.join(" | ")}`);
 }
 
 main().catch((err) => {
