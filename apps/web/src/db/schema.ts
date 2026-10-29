@@ -230,6 +230,31 @@ export const comprehensionAnswers = pgTable(
   (t) => [index("comprehension_answers_question_student_idx").on(t.questionId, t.studentId)],
 ).enableRLS();
 
+/**
+ * S5: feedback on a photo of handwritten work. Only what Asterisk read and its
+ * feedback are kept; the photo itself is never stored.
+ */
+export const workPhotos = pgTable(
+  "work_photos",
+  {
+    id: id(),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => students.id, { onDelete: "cascade" }),
+    assignmentId: uuid("assignment_id")
+      .notNull()
+      .references(() => assignments.id, { onDelete: "cascade" }),
+    legible: boolean("legible").notNull(),
+    /** [{ problemId, reading, status, feedback }] */
+    problems: jsonb("problems").notNull(),
+    overall: text("overall").notNull(),
+    /** What the answer-leak guard did. Teacher-only. */
+    guard: jsonb("guard").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("work_photos_assignment_student_idx").on(t.assignmentId, t.studentId, t.createdAt)],
+).enableRLS();
+
 /** S8: a student marked the assignment complete (after the comprehension check, if enabled). */
 export const submissions = pgTable(
   "submissions",

@@ -15,6 +15,12 @@ const FLAG_LABEL: Record<string, string> = {
   off_topic: "Off-topic",
 };
 
+const PHOTO_STATUS_LABEL: Record<string, string> = {
+  on_track: "On track",
+  revisit: "Revisit",
+  incomplete: "Unfinished",
+};
+
 export default async function StudentReportPage({
   params,
 }: PageProps<"/assignments/[assignmentId]/report/students/[studentId]">) {
@@ -144,6 +150,43 @@ export default async function StudentReportPage({
           )}
         </CardContent>
       </Card>
+
+      {s.photos.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Photos of handwritten work</CardTitle>
+            <CardDescription>
+              What Muse Spark read from each photo and the feedback the student got. Photos aren&apos;t stored.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            {[...s.photos].reverse().map((photo) => (
+              <div key={photo.createdAt.toISOString()} className="flex flex-col gap-2">
+                <p className="text-sm text-muted-foreground">
+                  <LocalDateTime iso={photo.createdAt.toISOString()} />
+                  {photo.leakBlocked && " · answer leak blocked"}
+                  {!photo.legible && " · couldn't be read"}
+                </p>
+                <ul className="flex flex-col gap-2">
+                  {photo.problems.map((p) => (
+                    <li key={p.problemId} className="grid gap-2 sm:grid-cols-2">
+                      <pre className="rounded-md bg-muted/50 p-2 text-sm whitespace-pre-wrap">
+                        Problem {p.problemId}
+                        {"\n"}
+                        {p.reading}
+                      </pre>
+                      <p className="text-sm">
+                        <Badge variant={p.status === "on_track" ? "secondary" : "outline"}>{PHOTO_STATUS_LABEL[p.status] ?? p.status}</Badge>{" "}
+                        {p.feedback}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

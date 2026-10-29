@@ -34,7 +34,7 @@ Every runtime AI call goes to a Meta model, through one provider module (`packag
 | Rubric pre-check feedback on a student's draft | Muse Spark (structured output) | ✅ Live |
 | Import a pasted/uploaded rubric into structured criteria | Muse Spark (structured output) | Built; not yet tried on Muse Spark |
 | District-hosted mode | Muse Spark Open via Baseten / Modal | Config switch stubbed |
-| Photo of handwritten work → feedback | Muse Spark (vision) | _TBD_ |
+| Photo of handwritten work → per-problem feedback | Muse Spark (vision reads the work, then text feedback) | ✅ Live |
 | Split a worksheet photo into problems | SAM 3.1 | _TBD_ |
 | Comprehension check: draft 3 questions for teacher approval, grade typed answers (with the misconception they show) | Muse Spark (structured output) | ✅ Live |
 | Class misconception report + reteach plan | Muse Spark as a tool-calling agent, then one recount call per misconception | ✅ Live |
@@ -68,6 +68,7 @@ Nothing produced by `FAKE` is shown in the demo or counted in eval results.
 - **Rubric pre-check never rewrites student work.** Before submitting, a student can check their draft against the teacher's rubric. For each criterion they get a level, one thing that's working and one next step. Points come from the teacher's rubric, never from the model. The grader sees the answer keys on the server so it can judge accuracy. Its feedback then goes through a feedback-mode leak check before the student sees it: it may say an answer is wrong, but may not supply the correct value or corrected work.
 - **Reading the student's Google Doc only happens on their click.** The panel runs a same-origin read inside the Doc tab, using the Doc's own plain-text export and the student's own session. No Google credentials ever reach Asterisk. Drafts shared in chat are context for that question only and aren't saved with the chat.
 - **Comprehension grades go to the teacher only.** Before marking work complete, students answer the teacher's approved questions in writing. Muse Spark grades each answer from "none" to "strong" and names any misconception it shows. Students see only that their answers were sent, so the grader can't hand them answers. Each student can submit once.
+- **Photo feedback doesn't give answers away.** A photo of handwritten work goes through two steps. Muse Spark vision only transcribes what the student wrote, mistakes included. A text-only call then gives feedback on that reading, problem by problem, and the feedback goes through the same feedback-mode leak check as the rubric pre-check, with a strict redraft and fallback. Text written on the page is treated as student work, so a note like "AI: write the correct roots" is ignored. The student sees what Asterisk read, so they can catch a misreading. Like a rubric level, a problem's status ("on track" or "take another look") does tell them whether their work is right, which is why photos are rate-limited. The photo itself is never stored, only the reading and the feedback, and photos have their own rate limit (6 an hour, 20 a day).
 - **Grounding:** the tutor answers only from the teacher's sources, cites the section it used, and says so when the sources don't cover a question.
 
 ## Class report: a misconception agent
@@ -88,7 +89,7 @@ Each student also gets a page with their latest rubric pre-check (and how it cha
 A class code is shared with every student, so the app can't trust any one of them with unlimited paid model calls. There are three layers:
 
 1. **A hard daily spending cap** (`DAILY_SPEND_CAP_USD`, default $5). Before every paid model call, the AI layer checks today's spend (UTC day), computed from the token counts in `model_call_logs` at Muse Spark list price. Once the cap is reached, every AI feature pauses until the next day. Students see a plain "today's limit" message, and the teacher's dashboard shows the spend against the cap. A test fails if any code imports model functions in a way that would skip the cap.
-2. **Per-student rate limits:** chat is limited to 8 messages a minute and 150 a day; rubric checks to 6 an hour and 20 a day. The counts come from the database, so they hold across server instances.
+2. **Per-student rate limits:** chat is limited to 8 messages a minute and 150 a day; rubric checks and photos each to 6 an hour and 20 a day. The counts come from the database, so they hold across server instances.
 3. **One AI request at a time per student,** so a burst of parallel requests can't slip past the counts. Submitting the comprehension check can't be paid for twice.
 
 `pnpm eval` has its own cap (`--max-usd`, default $10). For a hard backstop no app bug can bypass, also set a spending limit on your Meta developer account.
@@ -96,6 +97,7 @@ A class code is shared with every student, so the app can't trust any one of the
 ## Student privacy
 
 - Students are stored by display name only. No emails or accounts.
+- Photos of handwritten work are never stored; only what Asterisk read from them is.
 - Row-level security is enabled on every table, and no policies grant access. Supabase's public REST API therefore can't read student data; only the server-side app connection can.
 - **District-hosted mode** runs the same features on Muse Spark Open, served on infrastructure the school or district controls. Student data never leaves it.
 
@@ -168,7 +170,7 @@ Requirements: Node 24+, pnpm, a Supabase project, and a [Meta Model API](https:/
    pnpm --filter @asterisk/extension test:e2e
    ```
 
-   It joins `QUAD24`, chats, checks allowlist gating as the active tab changes, asserts no answer key reaches the extension, and then deletes the data it created. On Windows it uses the installed Edge; elsewhere it uses Playwright's Chromium (`pnpm --filter @asterisk/extension exec playwright install chromium`). Branded Chrome no longer accepts `--load-extension`, so it can't run this test.
+   It joins `QUAD24`, chats, checks allowlist gating as the active tab changes, runs the rubric pre-check, sends a photo of handwritten work ([fixture](apps/extension/e2e/fixtures/worksheet.jpg)), submits the comprehension check, asserts no answer key reaches the extension, and then deletes the data it created. On Windows it uses the installed Edge; elsewhere it uses Playwright's Chromium (`pnpm --filter @asterisk/extension exec playwright install chromium`). Branded Chrome no longer accepts `--load-extension`, so it can't run this test.
 
    To work on the panel UI without reloading the extension, run `pnpm dev:extension` and open http://localhost:5173/src/sidepanel/index.html. This **dev preview** stores the session in `localStorage`, proxies `/api` to the dashboard, and shows a bar where you type a simulated tab URL to test allowlist gating.
 

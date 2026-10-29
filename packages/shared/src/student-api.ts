@@ -113,6 +113,45 @@ export const RubricCheckResponse = z.object({
 });
 export type RubricCheckResponse = z.infer<typeof RubricCheckResponse>;
 
+// ---------- S5: photo of handwritten work ----------
+
+/**
+ * The panel downscales photos to ~1600 px JPEG first (well under 1 MB). The cap
+ * keeps requests under typical serverless body limits (4.5 MB on Vercel).
+ */
+export const MAX_PHOTO_DATA_URL_CHARS = 4_000_000;
+
+export const PhotoFeedbackRequest = z.object({
+  image: z
+    .string()
+    .max(MAX_PHOTO_DATA_URL_CHARS, "That photo is too large. Try a smaller one.")
+    .regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/, "Upload a JPEG, PNG or WebP photo."),
+});
+export type PhotoFeedbackRequest = z.infer<typeof PhotoFeedbackRequest>;
+
+export const PhotoStatus = z.enum(["on_track", "revisit", "incomplete"]);
+export type PhotoStatus = z.infer<typeof PhotoStatus>;
+
+export const PhotoFeedbackResult = z.object({
+  id: z.string(),
+  createdAt: z.string(),
+  legible: z.boolean(),
+  problems: z.array(
+    z.object({
+      problemId: z.string(),
+      /** What Asterisk read from the photo, so the student can spot a misreading. */
+      reading: z.string(),
+      status: PhotoStatus,
+      feedback: z.string(),
+    }),
+  ),
+  overall: z.string(),
+});
+export type PhotoFeedbackResult = z.infer<typeof PhotoFeedbackResult>;
+
+export const PhotoFeedbackResponse = z.object({ latest: PhotoFeedbackResult.nullable() });
+export type PhotoFeedbackResponse = z.infer<typeof PhotoFeedbackResponse>;
+
 // ---------- S7 + S8: comprehension check (text) and mark complete ----------
 
 /** Grades go to the teacher only, so this shape carries no scores. */

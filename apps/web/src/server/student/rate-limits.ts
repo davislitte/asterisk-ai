@@ -23,6 +23,11 @@ export const RUBRIC_CHECK_LIMITS: Window[] = [
   { max: 20, seconds: 86_400, message: "You've reached today's limit for rubric checks." },
 ];
 
+export const PHOTO_LIMITS: Window[] = [
+  { max: 6, seconds: 3_600, message: "You've sent a lot of photos this hour. Work on the feedback, then try again later." },
+  { max: 20, seconds: 86_400, message: "You've reached today's limit for photo feedback." },
+];
+
 /** Returns the first limit exceeded given each window's current count, or null. */
 export function exceededLimit(limits: Window[], counts: number[]): Window | null {
   return limits.find((limit, i) => (counts[i] ?? 0) >= limit.max) ?? null;

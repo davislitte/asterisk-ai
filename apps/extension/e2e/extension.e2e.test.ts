@@ -24,6 +24,8 @@ const DIST = path.resolve(import.meta.dirname, "..", "dist");
 const STUDENT = `E2E Test ${Date.now().toString(36)}`;
 const DOC_URL = "https://docs.google.com/document/d/e2e-doc/edit";
 const DOC_TEXT = "1. x^2 - 5x + 6 = 0\n(x - 2)(x - 3) = 0\nx = 2";
+/** Handwriting-style worksheet rendered for this project (problems 1–3; problem 2 misses a root). */
+const PHOTO = path.resolve(import.meta.dirname, "fixtures", "worksheet.jpg");
 /** Real Muse Spark turns take 7–10 s (rubric check ~30 s); FAKE is instant. */
 const MODEL_TIMEOUT = 90_000;
 
@@ -131,6 +133,19 @@ describe("built extension", { timeout: 600_000 }, () => {
     for (const criterion of ["Factoring", "Finds all roots", "Checks and interprets", "Explains reasoning"]) {
       assert.match(text, new RegExp(criterion));
     }
+    await panel.getByRole("tab", { name: "Ask" }).click();
+  });
+
+  it("gives per-problem feedback on a photo of handwritten work", async () => {
+    await panel.getByRole("tab", { name: "Photo" }).click();
+    const request = panel.waitForRequest((r) => r.url().endsWith("/photo") && r.method() === "POST");
+    await panel.locator("#photo-input").setInputFiles(PHOTO);
+    const body = (await request).postDataJSON() as { image: string };
+    assert.match(body.image, /^data:image\/jpeg;base64,/, "downscaled to JPEG in the panel");
+    const feedback = panel.getByRole("region", { name: "Photo feedback" });
+    await feedback.waitFor({ timeout: MODEL_TIMEOUT });
+    // On Muse Spark the fixture's three problems are read; the FAKE stub reads nothing.
+    if (process.env.AI_PROVIDER !== "FAKE") assert.match(await feedback.innerText(), /Problem 2/);
     await panel.getByRole("tab", { name: "Ask" }).click();
   });
 

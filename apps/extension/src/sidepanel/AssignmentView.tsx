@@ -3,9 +3,10 @@ import { useState } from "react";
 import { Chat } from "./Chat";
 import { CheckWork } from "./CheckWork";
 import { Finish } from "./Finish";
+import { Photo } from "./Photo";
 import type { Draft } from "./read-doc";
 
-type Tab = "ask" | "check" | "finish";
+type Tab = "ask" | "check" | "photo" | "finish";
 
 export function AssignmentView({
   token,
@@ -30,6 +31,7 @@ export function AssignmentView({
             [
               ["ask", "Ask"],
               ["check", "Check my work"],
+              ["photo", "Photo"],
               ["finish", "Finish"],
             ] as const
           ).map(([id, label]) => (
@@ -54,6 +56,8 @@ export function AssignmentView({
         <Chat token={token} assignment={assignment} draft={draft} onDraftChange={setDraft} onUnauthorized={onUnauthorized} />
       ) : tab === "check" ? (
         <CheckWork token={token} assignment={assignment} draft={draft} onDraftChange={setDraft} onUnauthorized={onUnauthorized} />
+      ) : tab === "photo" ? (
+        <Photo token={token} assignment={assignment} onUnauthorized={onUnauthorized} />
       ) : (
         <Finish token={token} assignment={assignment} onUnauthorized={onUnauthorized} />
       )}

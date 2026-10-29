@@ -30,6 +30,8 @@ export type { RubricCheckCriterion, RubricCheckInput } from "./prompts/rubric-ch
 export { type RubricCheckCriterionResult, type RubricCheckResultData, rubricCheck } from "./tasks/rubric-check";
 export { UNDERSTANDING_LEVELS } from "./prompts/comprehension";
 export { type GradedAnswer, generateCheckQuestions, gradeComprehensionAnswer } from "./tasks/comprehension";
+export { PHOTO_STATUSES } from "./prompts/photo-feedback";
+export { type PhotoFeedbackResult, type PhotoProblemResult, UNREADABLE_MESSAGE, photoFeedback } from "./tasks/photo-feedback";
 export { type AgentStep, type AgentTool, runToolLoop } from "./tasks/tool-loop";
 export { CLASS_REPORT_PROMPT_VERSION, type ClassReportContext } from "./prompts/class-report";
 export {

@@ -13,6 +13,7 @@ import {
   sources,
   students,
   submissions,
+  workPhotos,
 } from "@/db/schema";
 import { toRubricCheckResult } from "@/server/student/rubric-checks";
 
@@ -51,6 +52,15 @@ export interface StudentWork {
   } | null;
   answers: { question: number; text: string; answer: string; understanding: Understanding | null; rationale: string }[];
   messages: { id: string; content: string; flags: string[]; createdAt: Date; citedRefs: string[] }[];
+  /** Photos of handwritten work: what Asterisk read, and the feedback it gave. */
+  photos: { createdAt: Date; legible: boolean; problems: PhotoProblem[]; overall: string; leakBlocked: boolean }[];
+}
+
+export interface PhotoProblem {
+  problemId: string;
+  reading: string;
+  status: string;
+  feedback: string;
 }
 
 export interface ClassWork {
@@ -65,7 +75,7 @@ export function labelFor(index: number): string {
 }
 
 export async function loadClassWork(assignmentId: string, classId: string): Promise<ClassWork> {
-  const [roster, checks, questionRows, answerRows, messageRows, submitted, rubric, chunks] = await Promise.all([
+  const [roster, checks, questionRows, answerRows, messageRows, submitted, rubric, chunks, photoRows] = await Promise.all([
     db
       .select({ id: students.id, name: students.displayName })
       .from(students)
@@ -119,6 +129,7 @@ export async function loadClassWork(assignmentId: string, classId: string): Prom
       .innerJoin(sources, eq(sourceChunks.sourceId, sources.id))
       .where(eq(sources.assignmentId, assignmentId))
       .orderBy(asc(sources.createdAt), asc(sourceChunks.ordinal)),
+    db.select().from(workPhotos).where(eq(workPhotos.assignmentId, assignmentId)).orderBy(asc(workPhotos.createdAt)),
   ]);
 
   const refById = new Map(chunks.map((c) => [c.id, c.ref]));
@@ -138,6 +149,7 @@ export async function loadClassWork(assignmentId: string, classId: string): Prom
         latestCheck: null,
         answers: [],
         messages: [],
+        photos: [],
       },
     ]),
   );
@@ -178,6 +190,18 @@ export async function loadClassWork(assignmentId: string, classId: string): Prom
     }
   }
 
+  for (const p of photoRows) {
+    const w = work.get(p.studentId);
+    if (!w) continue;
+    w.photos.push({
+      createdAt: p.createdAt,
+      legible: p.legible,
+      problems: Array.isArray(p.problems) ? (p.problems as PhotoProblem[]) : [],
+      overall: p.overall,
+      leakBlocked: Boolean((p.guard as { leakDetected?: boolean } | null)?.leakDetected),
+    });
+  }
+
   for (const s of submitted) {
     const w = work.get(s.studentId);
     if (w) w.submittedAt = s.submittedAt;
@@ -201,6 +225,8 @@ export function studentText(w: StudentWork): string {
   const parts: string[] = [];
   if (w.latestCheck) parts.push(`DRAFT:\n${w.latestCheck.draft}`);
   if (w.answers.length) parts.push(`COMPREHENSION ANSWERS:\n${w.answers.map((a) => `Q${a.question}: ${a.answer}`).join("\n")}`);
+  const photo = w.photos.findLast((p) => p.legible);
+  if (photo) parts.push(`PHOTO OF HANDWRITTEN WORK (as read):\n${photo.problems.map((p) => `Problem ${p.problemId}:\n${p.reading}`).join("\n")}`);
   // Recent messages only, so a very chatty student can't balloon every recount call.
   if (w.messages.length) parts.push(`MESSAGES TO THE TUTOR:\n${w.messages.slice(-40).map((m) => `- ${m.content}`).join("\n")}`);
   return parts.join("\n\n");

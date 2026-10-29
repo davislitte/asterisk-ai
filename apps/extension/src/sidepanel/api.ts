@@ -7,6 +7,8 @@ import {
   FinishResponse,
   JoinResponse,
   type JoinRequest,
+  type PhotoFeedbackRequest,
+  PhotoFeedbackResponse,
   type RubricCheckRequest,
   RubricCheckResponse,
 } from "@asterisk/shared";
@@ -64,6 +66,10 @@ export const api = {
     call(`/api/student/assignments/${assignmentId}/rubric-check`, RubricCheckResponse, { token }),
   runRubricCheck: (token: string, assignmentId: string, body: RubricCheckRequest) =>
     call(`/api/student/assignments/${assignmentId}/rubric-check`, RubricCheckResponse, { token, method: "POST", body }),
+  photo: (token: string, assignmentId: string) =>
+    call(`/api/student/assignments/${assignmentId}/photo`, PhotoFeedbackResponse, { token }),
+  sendPhoto: (token: string, assignmentId: string, body: PhotoFeedbackRequest) =>
+    call(`/api/student/assignments/${assignmentId}/photo`, PhotoFeedbackResponse, { token, method: "POST", body }),
   finishStatus: (token: string, assignmentId: string) =>
     call(`/api/student/assignments/${assignmentId}/finish`, FinishResponse, { token }),
   finish: (token: string, assignmentId: string, body: FinishRequest) =>

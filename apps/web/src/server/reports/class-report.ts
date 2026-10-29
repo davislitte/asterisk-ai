@@ -76,6 +76,7 @@ export function classReportData(work: ClassWork): ClassReportData {
           understanding: a.understanding,
           graderNote: a.rationale,
         })),
+        photoOfWork: s.photos.findLast((p) => p.legible)?.problems.map((p) => ({ problem: p.problemId, read: p.reading })) ?? null,
         messages: s.messages.slice(-MAX_MESSAGES_PER_STUDENT).map((m) => ({
           text: m.content,
           ...(m.flags.length ? { flags: m.flags } : {}),
@@ -93,6 +94,7 @@ export function classReportData(work: ClassWork): ClassReportData {
           ["draft", s.latestCheck?.draft ?? ""],
           ...s.messages.map((m): [string, string] => ["chat", m.content]),
           ...s.answers.map((a): [string, string] => [`comprehension Q${a.question}`, a.answer]),
+          ...s.photos.flatMap((ph) => ph.problems.map((p): [string, string] => [`photo, problem ${p.problemId}`, p.reading])),
         ];
         for (const [where, text] of places) {
           const lower = text.toLowerCase();
