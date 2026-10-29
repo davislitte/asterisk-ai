@@ -138,6 +138,12 @@ Requirements: Node 24+, pnpm, a Supabase project, and a [Meta Model API](https:/
    pnpm db:seed:work
    ```
 
+   Also optional: three practice classes beyond algebra, one assignment each, to try Asterisk on other subjects. Life Science (photosynthesis, join code `SCI007`, help level 3), English 8 (extended metaphor in a public-domain Emily Dickinson poem, `ENG008`, help level 1) and World History (the Industrial Revolution, `HIS008`, help level 2). Re-running `pnpm db:seed` removes them, so run this again after it:
+
+   ```bash
+   pnpm db:seed:practice
+   ```
+
 4. Check that Muse Spark answers:
 
    ```bash

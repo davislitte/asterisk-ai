@@ -17,6 +17,7 @@
     "db:migrate": "pnpm --filter @asterisk/web db:migrate",
     "db:seed": "pnpm --filter @asterisk/web db:seed",
     "db:seed:work": "pnpm --filter @asterisk/web db:seed:work",
+    "db:seed:practice": "pnpm --filter @asterisk/web db:seed:practice",
     "ai:smoke": "pnpm --filter @asterisk/ai smoke",
     "eval": "pnpm --filter @asterisk/ai eval"
   },
