@@ -69,6 +69,16 @@ Nothing produced by `FAKE` is shown in the demo or counted in eval results.
 - **Comprehension grades go to the teacher only.** Before marking work complete, students answer the teacher's approved questions in writing. Muse Spark grades each answer from "none" to "strong" and names any misconception it shows. Students see only that their answers were sent, so the grader can't hand them answers. Each student can submit once.
 - **Grounding:** the tutor answers only from the teacher's sources, cites the section it used, and says so when the sources don't cover a question.
 
+## Cost protection
+
+A class code is shared with every student, so the app can't trust any one of them with unlimited paid model calls. There are three layers:
+
+1. **A hard daily spending cap** (`DAILY_SPEND_CAP_USD`, default $5). Before every paid model call, the AI layer checks today's spend (UTC day), computed from the token counts in `model_call_logs` at Muse Spark list price. Once the cap is reached, every AI feature pauses until the next day. Students see a plain "today's limit" message, and the teacher's dashboard shows the spend against the cap. A test fails if any code imports model functions in a way that would skip the cap.
+2. **Per-student rate limits:** chat is limited to 8 messages a minute and 150 a day; rubric checks to 6 an hour and 20 a day. The counts come from the database, so they hold across server instances.
+3. **One AI request at a time per student,** so a burst of parallel requests can't slip past the counts. Submitting the comprehension check can't be paid for twice.
+
+`pnpm eval` has its own cap (`--max-usd`, default $10). For a hard backstop no app bug can bypass, also set a spending limit on your Meta developer account.
+
 ## Student privacy
 
 - Students are stored by display name only. No emails or accounts.

@@ -1,11 +1,20 @@
-import { FinishRequest, type FinishResponse } from "@asterisk/shared";
+import { FinishRequest, type FinishResponse, type StudentAssignment } from "@asterisk/shared";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { checkQuestions, comprehensionAnswers, submissions } from "@/db/schema";
-import { ModelCallError, STUDENT_SAFE_ERROR_MESSAGE, gradeComprehensionAnswer } from "@/server/ai";
+import { gradeComprehensionAnswer } from "@/server/ai";
 import { isUniqueViolation } from "@/server/join-code";
 import { studentJson } from "@/server/student-response";
-import { type Student, getStudent, badRequest, notFound, unauthorized } from "@/server/student/session";
+import { BUSY_MESSAGE, inFlight } from "@/server/student/rate-limits";
+import {
+  type Student,
+  aiUnavailable,
+  badRequest,
+  getStudent,
+  notFound,
+  tooManyRequests,
+  unauthorized,
+} from "@/server/student/session";
 import { getStudentAssignment, listGroundingChunks } from "@/server/student/data";
 
 type Ctx = RouteContext<"/api/student/assignments/[assignmentId]/finish">;
@@ -57,8 +66,19 @@ export async function POST(request: Request, ctx: Ctx) {
     return studentJson({ error: "You've already marked this assignment complete." }, { status: 409 });
   }
 
+  // One submission in flight per student, so a double click can't pay for grading twice.
+  const key = `finish:${student.id}`;
+  if (!inFlight.acquire(key)) return tooManyRequests(BUSY_MESSAGE);
+  try {
+    return await submitAnswers(student, assignment, parsed.data);
+  } finally {
+    inFlight.release(key);
+  }
+}
+
+async function submitAnswers(student: Student, assignment: StudentAssignment, input: FinishRequest) {
   const questions = assignment.endCheckEnabled ? await approvedQuestions(assignment.id) : [];
-  const answers = new Map(parsed.data.answers.map((a) => [a.questionId, a.answer]));
+  const answers = new Map(input.answers.map((a) => [a.questionId, a.answer]));
   if (questions.some((q) => !answers.get(q.id)) || answers.size !== questions.length) {
     return badRequest("Answer every question before you finish.");
   }
@@ -80,8 +100,7 @@ export async function POST(request: Request, ctx: Ctx) {
     );
   } catch (err) {
     // Nothing is saved, so the student can resubmit the same answers.
-    if (!(err instanceof ModelCallError)) console.error("[finish] grading failed", err);
-    return studentJson({ error: STUDENT_SAFE_ERROR_MESSAGE }, { status: 503 });
+    return aiUnavailable(err, "finish");
   }
 
   // A double submit races here; the unique index rejects the second and rolls back its answers.

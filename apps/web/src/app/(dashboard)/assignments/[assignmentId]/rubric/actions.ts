@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getAssignmentForTeacher } from "@/server/assignments";
 import { ModelCallError, RUBRIC_IMPORT_MAX_CHARS, importRubric } from "@/server/ai";
+import { SPEND_CAP_TEACHER_MESSAGE } from "@/server/spend";
 import { requireTeacher } from "@/server/auth";
 import { replaceRubric } from "@/server/rubrics";
 import { ExtractionError } from "@/server/sources/extract";
@@ -51,6 +52,7 @@ async function parseWithModel(text: string): Promise<ImportRubricResult> {
     if (!checked.success) return { error: "Asterisk couldn't turn that into a rubric. Try entering it by hand." };
     return { criteria: checked.data.criteria };
   } catch (err) {
+    if (err instanceof ModelCallError && err.spendCapReached) return { error: SPEND_CAP_TEACHER_MESSAGE };
     if (!(err instanceof ModelCallError)) console.error("[rubric] import failed", err);
     return { error: "Asterisk couldn't read that rubric right now. Try again, or enter it by hand." };
   }

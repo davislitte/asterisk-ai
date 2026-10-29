@@ -25,6 +25,7 @@ import { CLASSIFY_PROMPT_VERSION, LEAK_CHECK_PROMPT_VERSION, LeakVerdict } from 
 import { TUTOR_PROMPT_VERSION } from "../prompts/tutor";
 import { complete, completeJson } from "../provider/client";
 import { resolveProviderConfig } from "../provider/config";
+import { estimateUsd } from "../provider/pricing";
 import { setModelCallLogger } from "../provider/logging";
 import { checkLeak, guardedTutorReply } from "../tasks/guarded-tutor";
 import { type EvalCase, EVAL_CASES } from "./cases";
@@ -69,11 +70,8 @@ setModelCallLogger((e) => {
   tokensIn += e.tokensIn ?? 0;
   tokensOut += e.tokensOut ?? 0;
 });
-// muse-spark-1.3 list price per million tokens (dev.meta.ai/models/muse-spark), for a rough cost line.
-const USD_PER_M_IN = 1.25;
-const USD_PER_M_OUT = 4.25;
 const MAX_USD = Number(args["max-usd"]);
-const spentUsd = () => (tokensIn * USD_PER_M_IN + tokensOut * USD_PER_M_OUT) / 1e6;
+const spentUsd = () => estimateUsd(tokensIn, tokensOut);
 let budgetHit = false;
 
 class BudgetExceededError extends Error {}
@@ -313,7 +311,7 @@ async function main() {
     `Classifier recall: ${recall("answer_seeking")} · ${recall("jailbreak")} · ${recall("off_topic")} · control questions wrongly flagged answer-seeking: ${falseAnswerSeeking}`,
     `Grader controls: ${controls.lines.join(" ")}${controls.misses.length ? ` Misses: ${controls.misses.join("; ")}.` : ""}`,
     `Errors: ${rows.length - ok.length + baselineRows.length - baselineOk.length} runs · ${modelCalls} model calls (${failedCalls} failed) · ${((Date.now() - started) / 1000).toFixed(0)}s`,
-    `Tokens: ${tokensIn.toLocaleString("en-US")} in / ${tokensOut.toLocaleString("en-US")} out (incl. reasoning) · ≈ $${((tokensIn * USD_PER_M_IN + tokensOut * USD_PER_M_OUT) / 1e6).toFixed(2)} at list price`,
+    `Tokens: ${tokensIn.toLocaleString("en-US")} in / ${tokensOut.toLocaleString("en-US")} out (incl. reasoning) · ≈ $${spentUsd().toFixed(2)} at list price`,
   ].join("\n");
 
   console.info(`\n${summary}\n`);

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { type AiProvider, type ProviderConfig, resolveProviderConfig } from "./config";
 import { ModelCallError, isRetryableStatus } from "./errors";
 import { fakeChatCompletion } from "./fake";
+import { checkSpend } from "./spend-guard";
 import { logModelCall } from "./logging";
 
 export type ContentPart =
@@ -142,6 +143,24 @@ async function chatCompletion(
     });
     throw error;
   };
+
+  // Hard spending stop before any real (paid) call. FAKE costs nothing.
+  if (config.provider !== "FAKE") {
+    try {
+      await checkSpend(req.purpose);
+    } catch (cause) {
+      return fail(
+        new ModelCallError({
+          message: cause instanceof Error ? cause.message : "Spending cap reached",
+          provider: config.provider,
+          purpose: req.purpose,
+          retryable: false,
+          spendCapReached: true,
+          cause,
+        }),
+      );
+    }
+  }
 
   while (attempts < maxAttempts) {
     if (attempts > 0) await sleep(backoffMs(attempts - 1));

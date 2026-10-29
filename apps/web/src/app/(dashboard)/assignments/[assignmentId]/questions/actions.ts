@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getAssignmentForTeacher, listSourcesWithChunks } from "@/server/assignments";
 import { ModelCallError, generateCheckQuestions } from "@/server/ai";
 import { requireTeacher } from "@/server/auth";
+import { SPEND_CAP_TEACHER_MESSAGE } from "@/server/spend";
 import { QuestionInUseError, saveCheckQuestions } from "@/server/check-questions";
 
 async function ownedAssignment(assignmentId: string) {
@@ -45,6 +46,7 @@ export async function draftQuestions(
     });
     return { questions };
   } catch (err) {
+    if (err instanceof ModelCallError && err.spendCapReached) return { error: SPEND_CAP_TEACHER_MESSAGE };
     if (!(err instanceof ModelCallError)) console.error("[questions] draft failed", err);
     return { error: "Asterisk couldn't draft questions right now. Try again, or write your own." };
   }

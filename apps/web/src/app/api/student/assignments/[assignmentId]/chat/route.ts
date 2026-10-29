@@ -3,11 +3,12 @@ import {
   type ChatHistoryResponse,
   type ChatReplyResponse,
   type Citation,
+  type StudentAssignment,
   type StudentChatMessage,
 } from "@asterisk/shared";
 import { db } from "@/db/client";
 import { chatMessages } from "@/db/schema";
-import { ModelCallError, STUDENT_SAFE_ERROR_MESSAGE, type TutorSource, guardedTutorReply } from "@/server/ai";
+import { type TutorSource, guardedTutorReply } from "@/server/ai";
 import { getAnswerKeysForLeakCheck } from "@/server/student/answer-keys";
 import { studentJson } from "@/server/student-response";
 import {
@@ -16,7 +17,17 @@ import {
   listChatHistory,
   listGroundingChunks,
 } from "@/server/student/data";
-import { badRequest, getStudent, notFound, unauthorized } from "@/server/student/session";
+import { chatLimitMessage } from "@/server/student/rate-limit-db";
+import { BUSY_MESSAGE, inFlight } from "@/server/student/rate-limits";
+import {
+  type Student,
+  aiUnavailable,
+  badRequest,
+  getStudent,
+  notFound,
+  tooManyRequests,
+  unauthorized,
+} from "@/server/student/session";
 
 const PROMPT_HISTORY_TURNS = 20;
 
@@ -63,6 +74,19 @@ export async function POST(request: Request, ctx: RouteContext<"/api/student/ass
   const parsed = ChatRequest.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return badRequest(parsed.error.issues[0]?.message ?? "Invalid message");
 
+  // Cost protection: per-student limits, then one turn at a time (the daily cap backs both).
+  const limited = await chatLimitMessage(student.id);
+  if (limited) return tooManyRequests(limited);
+  const key = `chat:${student.id}`;
+  if (!inFlight.acquire(key)) return tooManyRequests(BUSY_MESSAGE);
+  try {
+    return await chatTurn(student, assignment, parsed.data, receivedAt);
+  } finally {
+    inFlight.release(key);
+  }
+}
+
+async function chatTurn(student: Student, assignment: StudentAssignment, input: ChatRequest, receivedAt: Date) {
   const [chunks, history] = await Promise.all([
     listGroundingChunks(assignment.id),
     listChatHistory(student.id, assignment.id, PROMPT_HISTORY_TURNS),
@@ -84,15 +108,14 @@ export async function POST(request: Request, ctx: RouteContext<"/api/student/ass
       assignment,
       sources,
       history: history.map((h) => ({ role: h.role, content: h.content })),
-      message: parsed.data.message,
+      message: input.message,
       // S4: the student's draft, sent only when they chose to share it. Used as
       // context for this turn; not stored with the chat.
-      draft: parsed.data.draft,
+      draft: input.draft,
       answerKeys: await getAnswerKeysForLeakCheck(student.classId, assignment.id),
     });
   } catch (err) {
-    if (!(err instanceof ModelCallError)) console.error("[chat] tutor failed", err);
-    return studentJson({ error: STUDENT_SAFE_ERROR_MESSAGE }, { status: 503 });
+    return aiUnavailable(err, "chat");
   }
 
   const citedChunkIds = reply.citations.flatMap((label) => chunkIdByLabel.get(label) ?? []);
@@ -103,7 +126,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/student/ass
         studentId: student.id,
         assignmentId: assignment.id,
         role: "student",
-        content: parsed.data.message,
+        content: input.message,
         flags: reply.flags,
         createdAt: receivedAt,
       },

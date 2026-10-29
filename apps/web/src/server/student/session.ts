@@ -1,4 +1,5 @@
 import "server-only";
+import { ModelCallError, STUDENT_SAFE_ERROR_MESSAGE } from "@asterisk/ai";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { students } from "@/db/schema";
@@ -37,3 +38,18 @@ export const badRequest = (error: string) => studentJson({ error }, { status: 40
 
 export const notFound = (what = "That assignment") =>
   studentJson({ error: `${what} isn't available.` }, { status: 404 });
+
+export const tooManyRequests = (error: string) => studentJson({ error }, { status: 429 });
+
+/**
+ * A model call failed: tell the student plainly if the daily spending cap
+ * stopped it (429), otherwise the generic retry message (503). Never raw errors.
+ */
+export function aiUnavailable(err: unknown, where: string) {
+  if (err instanceof ModelCallError) {
+    if (err.spendCapReached) return tooManyRequests(err.userMessage);
+  } else {
+    console.error(`[${where}] failed`, err);
+  }
+  return studentJson({ error: STUDENT_SAFE_ERROR_MESSAGE }, { status: 503 });
+}

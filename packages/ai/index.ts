@@ -8,7 +8,9 @@ export {
   complete,
   completeJson,
 } from "./provider/client";
-export { ModelCallError, STUDENT_SAFE_ERROR_MESSAGE } from "./provider/errors";
+export { ModelCallError, SPEND_CAP_MESSAGE, STUDENT_SAFE_ERROR_MESSAGE } from "./provider/errors";
+export { USD_PER_M_TOKENS_IN, USD_PER_M_TOKENS_OUT, estimateUsd } from "./provider/pricing";
+export { type SpendGuard, SpendCapReachedError, setSpendGuard } from "./provider/spend-guard";
 export { ImportedRubric, RUBRIC_IMPORT_MAX_CHARS } from "./prompts/rubric-import";
 export { importRubric } from "./tasks/import-rubric";
 export { TUTOR_PROMPT_VERSION, type TutorContext, type TutorSource, type TutorTurn } from "./prompts/tutor";
