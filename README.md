@@ -262,4 +262,4 @@ All code in this repo is new and was written for this hackathon. No code comes f
 
 ## License
 
-[MIT](LICENSE)
+Copyright (c) 2026 Davis Little. All rights reserved. This code is publicly viewable for hackathon evaluation only; no use, copying or modification without written permission. See [LICENSE](LICENSE).
