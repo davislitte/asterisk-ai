@@ -105,15 +105,19 @@ export function App() {
         <p className="p-4 text-zinc-500">Loading…</p>
       ) : !assignment ? (
         <AssignmentList assignments={assignments} onSelect={selectAssignment} />
-      ) : !allowedHere ? (
-        <NotEnabled url={tabUrl} allowlist={assignment.allowlist} />
       ) : (
-        <AssignmentView
-          key={assignment.id}
-          token={session.value.token}
-          assignment={assignment}
-          onUnauthorized={onUnauthorized}
-        />
+        <>
+          {!allowedHere && <NotEnabled url={tabUrl} allowlist={assignment.allowlist} />}
+          {/* Hidden, not unmounted, off the allowlist: coming back keeps the student's chat and typed answers. */}
+          <div className={allowedHere ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
+            <AssignmentView
+              key={assignment.id}
+              token={session.value.token}
+              assignment={assignment}
+              onUnauthorized={onUnauthorized}
+            />
+          </div>
+        </>
       )}
     </Shell>
   );

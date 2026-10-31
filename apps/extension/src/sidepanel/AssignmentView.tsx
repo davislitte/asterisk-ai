@@ -52,15 +52,27 @@ export function AssignmentView({
           ))}
         </div>
       </div>
-      {tab === "ask" ? (
+      {/* All tabs stay mounted so switching keeps typed answers, feedback and scroll position. */}
+      <Panel shown={tab === "ask"}>
         <Chat token={token} assignment={assignment} draft={draft} onDraftChange={setDraft} onUnauthorized={onUnauthorized} />
-      ) : tab === "check" ? (
+      </Panel>
+      <Panel shown={tab === "check"}>
         <CheckWork token={token} assignment={assignment} draft={draft} onDraftChange={setDraft} onUnauthorized={onUnauthorized} />
-      ) : tab === "photo" ? (
+      </Panel>
+      <Panel shown={tab === "photo"}>
         <Photo token={token} assignment={assignment} onUnauthorized={onUnauthorized} />
-      ) : (
+      </Panel>
+      <Panel shown={tab === "finish"}>
         <Finish token={token} assignment={assignment} onUnauthorized={onUnauthorized} />
-      )}
+      </Panel>
+    </div>
+  );
+}
+
+function Panel({ shown, children }: { shown: boolean; children: React.ReactNode }) {
+  return (
+    <div role="tabpanel" hidden={!shown} className={shown ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
+      {children}
     </div>
   );
 }

@@ -112,7 +112,8 @@ describe("built extension", { timeout: 600_000 }, () => {
 
   it("reads the Google Doc on click and sends it as chat context", async () => {
     await panel.getByRole("button", { name: "📄 Share my doc" }).click();
-    await panel.getByText(/Using “Algebra HW” · 18 words/).waitFor();
+    // Every tab stays mounted (hidden when inactive); the role query only sees the visible one.
+    await panel.getByRole("tabpanel").getByText(/Using “Algebra HW” · 18 words/).waitFor();
 
     const request = panel.waitForRequest((r) => r.url().endsWith("/chat") && r.method() === "POST");
     const box = panel.getByLabel("Message Asterisk");
@@ -151,7 +152,7 @@ describe("built extension", { timeout: 600_000 }, () => {
 
   it("answers the comprehension questions in writing and marks the assignment complete", async () => {
     await panel.getByRole("tab", { name: "Finish" }).click();
-    const answers = panel.locator("form textarea");
+    const answers = panel.getByRole("tabpanel").locator("form textarea");
     await answers.first().waitFor();
     assert.equal(await answers.count(), 3, "the seed's 3 approved questions");
     for (let i = 0; i < 3; i++) {
