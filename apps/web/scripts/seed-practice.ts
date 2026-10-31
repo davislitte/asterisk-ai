@@ -18,9 +18,8 @@ import type { AssignedProblem, RubricLevel } from "@asterisk/shared";
 import { eq, inArray } from "drizzle-orm";
 import { db, sqlClient } from "../src/db/client";
 import { assignments, checkQuestions, classes, rubricCriteria, rubrics, sourceChunks, sources } from "../src/db/schema";
+import { DEMO_JOIN_CODE } from "./demo-class";
 
-// Same as DEMO_JOIN_CODE in seed.ts (importing that file would run the full reseed).
-const DEMO_JOIN_CODE = "QUAD24";
 
 interface Practice {
   joinCode: string;

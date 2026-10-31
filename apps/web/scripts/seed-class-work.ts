@@ -25,37 +25,7 @@ import {
   students,
   submissions,
 } from "../src/db/schema";
-
-// Same as DEMO_JOIN_CODE in seed.ts (importing that file would run the full reseed).
-const DEMO_JOIN_CODE = "QUAD24";
-
-type Trait = "oneRoot" | "dividesByX" | "signError" | "keepsNegative" | "strong";
-
-// Exact counts on purpose: 14 stop after one root, 7 divide by x, 5 flip signs, 5 keep -8, 4 strong.
-const ROSTER: [string, Trait[]][] = [
-  ["Maya", ["oneRoot"]],
-  ["Leo", ["oneRoot", "dividesByX"]],
-  ["Priya", ["strong"]],
-  ["Mateo", ["oneRoot", "signError"]],
-  ["Zoe", ["oneRoot"]],
-  ["Elijah", ["dividesByX"]],
-  ["Hana", ["strong"]],
-  ["Omar", ["oneRoot", "keepsNegative"]],
-  ["Chloe", ["oneRoot", "dividesByX"]],
-  ["Diego", ["signError"]],
-  ["Amara", ["oneRoot"]],
-  ["Noah", ["oneRoot", "dividesByX", "keepsNegative"]],
-  ["Sofia", ["strong"]],
-  ["Kai", ["oneRoot", "signError"]],
-  ["Imani", ["dividesByX"]],
-  ["Lucas", ["oneRoot", "keepsNegative"]],
-  ["Aisha", ["strong"]],
-  ["Ethan", ["oneRoot", "dividesByX"]],
-  ["Grace", ["oneRoot", "keepsNegative"]],
-  ["Ravi", ["oneRoot", "signError"]],
-  ["Nina", ["oneRoot", "dividesByX"]],
-  ["Theo", ["signError", "keepsNegative"]],
-];
+import { DEMO_ASSIGNMENT_TITLE, DEMO_JOIN_CODE, ROSTER, type Trait } from "./demo-class";
 
 // Deterministic randomness, so every run produces the same class.
 function mulberry32(seed: number) {
@@ -371,7 +341,7 @@ async function main() {
   const klass = await db.query.classes.findFirst({ where: eq(classes.joinCode, DEMO_JOIN_CODE) });
   if (!klass) throw new Error(`No class with join code ${DEMO_JOIN_CODE}. Run pnpm db:seed first.`);
   const assignment = await db.query.assignments.findFirst({
-    where: and(eq(assignments.classId, klass.id), eq(assignments.title, "Solving Quadratics by Factoring")),
+    where: and(eq(assignments.classId, klass.id), eq(assignments.title, DEMO_ASSIGNMENT_TITLE)),
   });
   if (!assignment) throw new Error("The seeded quadratics assignment is missing. Run pnpm db:seed first.");
 

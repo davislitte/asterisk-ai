@@ -1,0 +1,25 @@
+Factoring Quadratics: Day 2 rubric (12 points)
+
+Factoring: rewrites each quadratic as a correct product of factors.
+  Exemplary (3): All quadratics are in standard form and factored correctly.
+  Proficient (2): Most factored correctly; minor sign errors.
+  Developing (1): Attempts factoring but with frequent errors.
+  Beginning (0): No factoring shown.
+
+Finds all roots: applies the zero product property to every factor.
+  Exemplary (3): Finds every root of every equation.
+  Proficient (2): Misses a root on one problem.
+  Developing (1): Regularly stops after the first root.
+  Beginning (0): Roots missing or incorrect.
+
+Checks and interprets: substitutes roots back in and rejects roots that don't fit the context.
+  Exemplary (3): Checks all roots and justifies rejecting the invalid one in problem 5.
+  Proficient (2): Checks most roots; context reasoning is brief.
+  Developing (1): Little checking; context not considered.
+  Beginning (0): No checking or interpretation.
+
+Explains reasoning: uses clear steps and math vocabulary (factor, root, zero product property).
+  Exemplary (3): Every step is clear and uses correct vocabulary.
+  Proficient (2): Steps are mostly clear.
+  Developing (1): Steps are hard to follow.
+  Beginning (0): Only final answers given.

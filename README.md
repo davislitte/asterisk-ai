@@ -8,11 +8,9 @@ Schools are banning AI because students use it to skip the learning. Asterisk gi
 - only draws on the teacher's sources,
 - guides students toward answers without giving them away.
 
-Before submitting, the student gets rubric-based feedback and answers three comprehension questions in writing. The teacher then sees where understanding broke down, for example "14/22 students found only one root of the quadratic."
+Before submitting, the student gets rubric-based feedback and answers three comprehension questions in writing. The teacher then sees where understanding broke down, for example "12/25 students stop after the first root."
 
 Built for the Meta Global AI Developer Hackathon (Indie track, *Build for Your World*).
-
-> 🚧 In active development during the hackathon (Oct 26 – Nov 4, 2026). Sections marked _TBD_ are filled in as features land.
 
 ## How it works
 
@@ -32,10 +30,10 @@ Every runtime AI call goes to a Meta model, through one provider module (`packag
 |---|---|---|
 | Guided tutoring with citations, at 4 help levels | Muse Spark (`muse-spark-1.3`, Meta Model API) | ✅ Live |
 | Rubric pre-check feedback on a student's draft | Muse Spark (structured output) | ✅ Live |
-| Import a pasted/uploaded rubric into structured criteria | Muse Spark (structured output) | Built; not yet tried on Muse Spark |
-| District-hosted mode | Muse Spark Open via Baseten / Modal | Config switch stubbed |
+| Import a pasted/uploaded rubric into structured criteria | Muse Spark (structured output) | ✅ Live |
+| District-hosted mode | Muse Spark Open via Baseten / Modal | Planned: the provider switch is in place, the hosted model isn't set up yet |
 | Photo of handwritten work → per-problem feedback | Muse Spark (vision reads the work, then text feedback) | ✅ Live |
-| Split a worksheet photo into problems | SAM 3.1 | _TBD_ |
+| Split a worksheet photo into problems | SAM 3.1 | Planned (stretch) |
 | Comprehension check: draft 3 questions for teacher approval, grade typed answers (with the misconception they show) | Muse Spark (structured output) | ✅ Live |
 | Class misconception report + reteach plan | Muse Spark as a tool-calling agent, then one recount call per misconception | ✅ Live |
 | Off-topic / jailbreak classifier, answer-leak check | Muse Spark (structured output) | ✅ Live; measured by `pnpm eval` below |
@@ -99,7 +97,7 @@ A class code is shared with every student, so the app can't trust any one of the
 - Students are stored by display name only. No emails or accounts.
 - Photos of handwritten work are never stored; only what Asterisk read from them is.
 - Row-level security is enabled on every table, and no policies grant access. Supabase's public REST API therefore can't read student data; only the server-side app connection can.
-- **District-hosted mode** runs the same features on Muse Spark Open, served on infrastructure the school or district controls. Student data never leaves it.
+- **District-hosted mode (planned)** will run the same features on Muse Spark Open, served on infrastructure the school or district controls, so student data never leaves it. Every model call already goes through one provider switch for this.
 
 ## Repo layout
 
@@ -177,6 +175,8 @@ Requirements: Node 24+, pnpm, a Supabase project, and a [Meta Model API](https:/
    ```
 
    It joins `QUAD24`, chats, checks allowlist gating as the active tab changes, runs the rubric pre-check, sends a photo of handwritten work ([fixture](apps/extension/e2e/fixtures/worksheet.jpg)), submits the comprehension check, asserts no answer key reaches the extension, and then deletes the data it created. On Windows it uses the installed Edge; elsewhere it uses Playwright's Chromium (`pnpm --filter @asterisk/extension exec playwright install chromium`). Branded Chrome no longer accepts `--load-extension`, so it can't run this test.
+
+   To try the whole demo yourself, [`demo/`](demo) has the class notes PDF, a rubric to paste, a student draft and a worksheet photo, plus the run sheet for the video. Between takes, `pnpm demo:reset` lists what the last take added to the demo class (dry run); `pnpm demo:reset --apply` removes it.
 
    To work on the panel UI without reloading the extension, run `pnpm dev:extension` and open http://localhost:5173/src/sidepanel/index.html. This **dev preview** stores the session in `localStorage`, proxies `/api` to the dashboard, and shows a bar where you type a simulated tab URL to test allowlist gating.
 

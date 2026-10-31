@@ -1,0 +1,23 @@
+Factoring Quadratics: Day 2 (Jamie)
+
+1. x^2 - 7x + 12 = 0
+(x - 3)(x - 4) = 0
+x = 3 or x = 4
+
+2. x^2 + 3x - 10 = 0
+(x + 5)(x - 2) = 0
+x = 2
+
+3. 4x^2 + 12x = 0
+I divided both sides by x: 4x + 12 = 0
+x = -3
+
+4. x^2 - 25 = 0
+(x - 5)(x + 5) = 0
+x = 5 or x = -5
+
+5. Width w, length w + 2, area 48.
+w(w + 2) = 48
+w^2 + 2w - 48 = 0
+(w + 8)(w - 6) = 0
+w = 6 or w = -8

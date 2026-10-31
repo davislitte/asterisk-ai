@@ -17,8 +17,7 @@ import {
   students,
   teachers,
 } from "../src/db/schema";
-
-export const DEMO_JOIN_CODE = "QUAD24";
+import { DEMO_ASSIGNMENT_TITLE, DEMO_JOIN_CODE, SEED_STUDENTS } from "./demo-class";
 
 const problems: AssignedProblem[] = [
   { id: "1", prompt: "Solve x^2 - 5x + 6 = 0 by factoring.", answerKey: "x = 2 or x = 3" },
@@ -160,7 +159,7 @@ async function main() {
       .insert(assignments)
       .values({
         classId: klass!.id,
-        title: "Solving Quadratics by Factoring",
+        title: DEMO_ASSIGNMENT_TITLE,
         subject: "Algebra I",
         gradeLevel: "9",
         instructions:
@@ -203,7 +202,7 @@ async function main() {
 
     await tx
       .insert(students)
-      .values(["Avery", "Jordan", "Sam"].map((displayName) => ({ classId: klass!.id, displayName })));
+      .values(SEED_STUDENTS.map((displayName) => ({ classId: klass!.id, displayName })));
   });
 
   console.info(`Seeded demo class. Join code: ${DEMO_JOIN_CODE}`);

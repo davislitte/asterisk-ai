@@ -19,6 +19,7 @@
     "db:seed": "pnpm --filter @asterisk/web db:seed",
     "db:seed:work": "pnpm --filter @asterisk/web db:seed:work",
     "db:seed:practice": "pnpm --filter @asterisk/web db:seed:practice",
+    "demo:reset": "pnpm --filter @asterisk/web demo:reset",
     "ai:smoke": "pnpm --filter @asterisk/ai smoke",
     "eval": "pnpm --filter @asterisk/ai eval"
   },
