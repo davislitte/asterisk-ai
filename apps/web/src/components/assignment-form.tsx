@@ -276,7 +276,7 @@ export function AssignmentForm({ mode, initial }: { mode: Mode; initial: Assignm
         <CardHeader>
           <CardTitle>End-of-assignment check</CardTitle>
           <CardDescription>
-            Before marking the assignment complete, students answer 3 comprehension questions out loud.
+            Before marking the assignment complete, students answer 3 comprehension questions in writing.
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -75,11 +75,11 @@ export default async function ReportPage({ params }: PageProps<"/assignments/[as
           {work.students.length === 0 ? (
             <p className="text-muted-foreground">No students have joined this class yet.</p>
           ) : (
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[720px] text-sm">
               <thead className="text-left text-muted-foreground">
                 <tr>
                   <th className="py-2 pr-4 font-medium">Student</th>
-                  <th className="py-2 pr-4 font-medium">Rubric check</th>
+                  <th className="py-2 pr-4 font-medium whitespace-nowrap">Rubric check</th>
                   <th className="py-2 pr-4 font-medium">Comprehension</th>
                   <th className="py-2 pr-4 text-right font-medium">Messages</th>
                   <th className="py-2 pr-4 text-right font-medium">Flags</th>
@@ -87,7 +87,7 @@ export default async function ReportPage({ params }: PageProps<"/assignments/[as
                 </tr>
               </thead>
               <tbody>
-                {work.students.map((s) => (
+                {byProgress(work.students).map((s) => (
                   <tr key={s.id} className="border-t align-top">
                     <td className="py-2 pr-4">
                       <Link href={`${base}/students/${s.id}`} className="font-medium hover:underline">
@@ -117,7 +117,7 @@ export default async function ReportPage({ params }: PageProps<"/assignments/[as
                     </td>
                     <td className="py-2 pr-4 text-right tabular-nums">{s.messages.length}</td>
                     <td className="py-2 pr-4 text-right tabular-nums">{flagTotal(s) || <span className="text-muted-foreground">0</span>}</td>
-                    <td className="py-2 text-muted-foreground">{notes.get(s.id) ?? ""}</td>
+                    <td className="min-w-60 py-2 text-muted-foreground">{notes.get(s.id) ?? ""}</td>
                   </tr>
                 ))}
               </tbody>
@@ -254,7 +254,7 @@ function ClassReportView({
             <CardDescription>Counted from the sections Asterisk cited when it helped students.</CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[640px] text-sm">
               <thead className="text-left text-muted-foreground">
                 <tr>
                   <th className="py-2 pr-4 font-medium">Section</th>
@@ -266,7 +266,7 @@ function ClassReportView({
               <tbody>
                 {sections.map((u) => (
                   <tr key={u.ref} className="border-t align-top">
-                    <td className="py-2 pr-4 font-medium">{u.ref}</td>
+                    <td className="w-56 py-2 pr-4 font-medium">{u.ref}</td>
                     <td className="py-2 pr-4 text-right tabular-nums">{u.replies}</td>
                     <td className="py-2 pr-4 text-right tabular-nums">{u.students.size}</td>
                     <td className="py-2 text-muted-foreground">{why.get(u.ref.toLowerCase()) ?? ""}</td>
@@ -361,6 +361,12 @@ function RubricCell({ s }: { s: StudentWork }) {
       )}
     </>
   );
+}
+
+/** Submitted first, then students who ran a rubric check, then the rest; by name within each group. */
+function byProgress(students: StudentWork[]): StudentWork[] {
+  const rank = (s: StudentWork) => (s.submittedAt ? 0 : s.latestCheck ? 1 : s.messages.length > 0 ? 2 : 3);
+  return [...students].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
 }
 
 function flagTotal(s: StudentWork): number {

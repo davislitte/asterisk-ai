@@ -9,6 +9,8 @@ if (existsSync(rootEnvFile)) process.loadEnvFile(rootEnvFile);
 // Cache Components is off: every dashboard page is per-teacher, cookie-gated
 // data, so the request-time rendering model is the simpler fit.
 const nextConfig: NextConfig = {
+  // Keeps the dev-mode badge out of screenshots and the demo recording.
+  devIndicators: false,
   experimental: {
     serverActions: {
       // Source uploads (PDF/DOCX) go through Server Actions. Vercel caps
