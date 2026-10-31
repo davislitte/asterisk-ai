@@ -203,6 +203,8 @@ export interface ClassReportRun {
   finishedInvestigating: boolean;
   usage: { tokensIn: number; tokensOut: number };
   latencyMs: number;
+  /** The model that wrote the report, e.g. "muse-spark-1.3" or "meta-models/muse-spark-open". */
+  model: string;
 }
 
 const MAX_ROUNDS = 8;
@@ -267,5 +269,6 @@ export async function runClassReport(
     finishedInvestigating: loop.finished,
     usage,
     latencyMs: Math.round(performance.now() - started),
+    model: written.model,
   };
 }

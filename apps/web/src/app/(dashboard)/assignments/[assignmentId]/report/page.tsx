@@ -32,14 +32,14 @@ export default async function ReportPage({ params }: PageProps<"/assignments/[as
 
   const nameById = new Map(work.students.map((s) => [s.id, s.name]));
   const nameOf = (label: string) => (report ? nameById.get(report.labels[label] ?? "") : undefined) ?? label;
-  const notes = new Map(report?.report.studentNotes.map((n) => [report.labels[n.student], n.note]) ?? []);
+  const notes = new Map(report?.report.studentNotes.map((n) => [report.labels[n.student], withNames(n.note, nameOf)]) ?? []);
   const base = `/assignments/${assignment.id}/report`;
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="max-w-2xl text-muted-foreground">
-          Where your class&apos;s understanding breaks down. Muse Spark reads every draft, chat and comprehension answer
+          Where your class&apos;s understanding breaks down. Asterisk reads every draft, chat and comprehension answer
           with read-only tools, then each claim is checked against your students&apos; actual work.
         </p>
         <GenerateReportButton assignmentId={assignment.id} hasReport={Boolean(report)} />
@@ -144,6 +144,7 @@ function ClassReportView({
   const { droppedQuotes, droppedStudentRefs, droppedMisconceptions } = report.report.verification;
   const addedByRecount = report.report.verification.addedByRecount ?? 0;
   const removed = droppedQuotes + droppedStudentRefs + droppedMisconceptions;
+  const named = (text: string) => withNames(text, nameOf);
 
   return (
     <div className="flex flex-col gap-6">
@@ -152,11 +153,12 @@ function ClassReportView({
           <CardTitle>Summary</CardTitle>
           <CardDescription>
             Built <LocalDateTime iso={report.createdAt.toISOString()} /> from {report.studentCount} students ·{" "}
-            {report.steps.length} tool calls · {(report.latencyMs / 1000).toFixed(0)} s · ${report.costUsd.toFixed(3)}
+            {report.steps.length} tool calls · {(report.latencyMs / 1000).toFixed(0)} s · ${report.costUsd.toFixed(3)} ·{" "}
+            {modelName(report.model)}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-base leading-relaxed">{report.report.summary}</p>
+          <p className="text-base leading-relaxed">{named(report.report.summary)}</p>
         </CardContent>
       </Card>
 
@@ -185,7 +187,7 @@ function ClassReportView({
                   </div>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3">
-                  <p>{m.explanation}</p>
+                  <p>{named(m.explanation)}</p>
                   {m.problemIds.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {m.problemIds.map((p) => (
@@ -219,7 +221,7 @@ function ClassReportView({
       <Card>
         <CardHeader>
           <CardTitle>Reteach plan</CardTitle>
-          <CardDescription>{reteachPlan.goal}</CardDescription>
+          <CardDescription>{named(reteachPlan.goal)}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <ol className="flex flex-col gap-3">
@@ -227,7 +229,7 @@ function ClassReportView({
               <li key={i} className="flex gap-3">
                 <span className="w-14 shrink-0 text-sm font-medium tabular-nums text-muted-foreground">{s.minutes} min</span>
                 <div className="flex flex-col gap-1">
-                  <p>{s.activity}</p>
+                  <p>{named(s.activity)}</p>
                   {s.addresses.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {s.addresses.map((n) => (
@@ -242,7 +244,7 @@ function ClassReportView({
             ))}
           </ol>
           <p className="rounded-md bg-muted/50 p-3 text-sm">
-            <span className="font-medium">Exit ticket:</span> {reteachPlan.exitTicket}
+            <span className="font-medium">Exit ticket:</span> {named(reteachPlan.exitTicket)}
           </p>
         </CardContent>
       </Card>
@@ -269,7 +271,7 @@ function ClassReportView({
                     <td className="w-56 py-2 pr-4 font-medium">{u.ref}</td>
                     <td className="py-2 pr-4 text-right tabular-nums">{u.replies}</td>
                     <td className="py-2 pr-4 text-right tabular-nums">{u.students.size}</td>
-                    <td className="py-2 text-muted-foreground">{why.get(u.ref.toLowerCase()) ?? ""}</td>
+                    <td className="py-2 text-muted-foreground">{named(why.get(u.ref.toLowerCase()) ?? "")}</td>
                   </tr>
                 ))}
               </tbody>
@@ -282,7 +284,7 @@ function ClassReportView({
         <summary className="cursor-pointer font-medium">How Asterisk built this report</summary>
         <div className="mt-3 flex flex-col gap-3">
           <p className="text-muted-foreground">
-            Muse Spark worked as an agent: it chose these {report.steps.length} read-only tool calls over{" "}
+            {modelName(report.model)} worked as an agent: it chose these {report.steps.length} read-only tool calls over{" "}
             {report.rounds} turns{report.finishedInvestigating ? "" : " (it hit its tool budget)"} and wrote the report.
             Then it recounted each misconception against every student&apos;s work
             {addedByRecount > 0 ? `, which added ${addedByRecount} student${addedByRecount === 1 ? "" : "s"} the investigation hadn't opened` : ""}.
@@ -307,6 +309,16 @@ function ClassReportView({
       </details>
     </div>
   );
+}
+
+/** The model writes "Student 07" in its prose too; show the real name, as in the quotes. */
+function withNames(text: string, nameOf: (label: string) => string): string {
+  return text.replace(/\bStudent \d{2,}\b/g, (label) => nameOf(label));
+}
+
+/** Reports from before the model was recorded were all built on Muse Spark. */
+function modelName(model: string | undefined): string {
+  return model?.includes("muse-spark-open") ? "Muse Spark Open" : "Muse Spark";
 }
 
 /** Several students can write the same sentence; show it once with all their names. */

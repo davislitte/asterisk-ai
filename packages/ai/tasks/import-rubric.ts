@@ -1,4 +1,4 @@
-import { ImportedRubric, rubricImportPromptV1 } from "../prompts/rubric-import";
+import { ImportedRubric, rubricImportPromptV2 } from "../prompts/rubric-import";
 import { completeJson } from "../provider/client";
 
 /**
@@ -8,7 +8,7 @@ import { completeJson } from "../provider/client";
 export async function importRubric(rubricText: string): Promise<ImportedRubric> {
   const result = await completeJson({
     purpose: "rubric.import",
-    messages: rubricImportPromptV1(rubricText),
+    messages: rubricImportPromptV2(rubricText),
     schemaName: "rubric",
     schema: ImportedRubric,
     reasoningEffort: "low",

@@ -189,6 +189,8 @@ const StoredClassReport = z.object({
   usage: z.object({ tokensIn: z.number(), tokensOut: z.number() }),
   costUsd: z.number(),
   latencyMs: z.number(),
+  /** Missing on reports built before it was recorded (all Muse Spark). */
+  model: z.string().optional(),
 });
 export type StoredClassReport = z.infer<typeof StoredClassReport> & { id: string; createdAt: Date };
 
@@ -217,6 +219,7 @@ export async function generateClassReport(assignment: TeacherAssignment): Promis
     usage: run.usage,
     costUsd: estimateUsd(run.usage.tokensIn, run.usage.tokensOut),
     latencyMs: run.latencyMs,
+    model: run.model,
   };
   const [row] = await db
     .insert(reports)

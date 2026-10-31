@@ -42,3 +42,19 @@ export function rubricImportPromptV1(rubricText: string): ChatMessage[] {
     { role: "user", content: `<rubric>\n${rubricText.slice(0, RUBRIC_IMPORT_MAX_CHARS)}\n</rubric>` },
   ];
 }
+
+/**
+ * v2: Muse Spark Open put a criterion's whole line ("Factoring: rewrites each
+ * quadratic…") into its name; the name is now just the short title.
+ */
+export function rubricImportPromptV2(rubricText: string): ChatMessage[] {
+  const [instructions, user] = rubricImportPromptV1(rubricText);
+  return [
+    {
+      role: "instructions",
+      content: `${instructions!.content as string}
+- \`name\` is the criterion's short title only. For a line like "Factoring: rewrites each quadratic as a product", the name is "Factoring" and the rest is its \`description\`.`,
+    },
+    user!,
+  ];
+}
