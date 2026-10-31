@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +25,7 @@ const OPTIONS: { host: AiHost; model: string; where: string; detail: string }[] 
 export function AiHostSwitch({ current, districtAvailable }: { current: AiHost; districtAvailable: boolean }) {
   const [host, setHost] = useState(current);
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
 
   function choose(next: AiHost) {
     if (next === host || pending) return;
@@ -36,6 +38,8 @@ export function AiHostSwitch({ current, districtAvailable }: { current: AiHost; 
         toast.error(res.error);
       } else {
         toast.success(`Asterisk now runs on ${OPTIONS.find((o) => o.host === next)!.model}.`);
+        // Refresh the header's model label too.
+        router.refresh();
       }
     });
   }

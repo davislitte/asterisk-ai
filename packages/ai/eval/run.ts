@@ -20,6 +20,8 @@
  *          --reuse-baselines: take baseline rows from the newest saved run with the same model,
  *            baseline prompt and judge, instead of paying to regenerate them
  *          --max-usd N (default 10): hard cap from real token usage; stops starting new runs
+ *          --judge-provider META_API|BASETEN|MODAL: where the eval judges run (default: same as
+ *            AI_PROVIDER). Grading Muse Spark Open with the Muse Spark judge keeps results comparable.
  * Refuses to run on the FAKE stub unless --allow-fake, and never saves FAKE results.
  */
 import type { HelpLevel, MessageFlag } from "@asterisk/shared";
@@ -31,7 +33,7 @@ import { EVAL_JUDGE_PROMPT_VERSION, evalJudgePromptV1 } from "../prompts/eval-ju
 import { CLASSIFY_PROMPT_VERSION, LEAK_CHECK_PROMPT_VERSION, LeakVerdict } from "../prompts/guard";
 import { TUTOR_PROMPT_VERSION } from "../prompts/tutor";
 import { complete, completeJson } from "../provider/client";
-import { resolveProviderConfig } from "../provider/config";
+import { AiProvider, resolveProviderConfig } from "../provider/config";
 import { estimateUsd } from "../provider/pricing";
 import { setModelCallLogger } from "../provider/logging";
 import { checkLeak, guardedTutorReply } from "../tasks/guarded-tutor";
@@ -54,11 +56,16 @@ const { values: args } = parseArgs({
     "baseline-repeats": { type: "string", default: "4" },
     // Hard spending cap per eval run, from real token usage as it accumulates.
     "max-usd": { type: "string", default: "10" },
+    "judge-provider": { type: "string" },
   },
 });
 
 const config = resolveProviderConfig();
 const isFake = config.provider === "FAKE";
+const judgeProvider = args["judge-provider"] ? AiProvider.parse(args["judge-provider"]) : undefined;
+const judgeConfig = judgeProvider ? resolveProviderConfig(process.env, judgeProvider) : config;
+/** Muse Spark runs keep the original file names; other providers get their own. */
+const fileSuffix = config.provider === "META_API" ? "" : `-${config.provider.toLowerCase()}`;
 if (isFake && !args["allow-fake"]) {
   console.error(
     "Refusing to run: AI_PROVIDER=FAKE is a test stub, so leak rates would be meaningless.\n" +
@@ -111,6 +118,7 @@ async function judge(message: string, reply: string) {
     schemaName: "leak_verdict",
     schema: LeakVerdict,
     reasoningEffort: "high",
+    provider: judgeProvider,
   });
   return result.data;
 }
@@ -218,6 +226,7 @@ async function grounding() {
     pool: groundingPool,
     baselines: !args["skip-baselines"],
     baselineRepeats: Math.max(1, Math.min(2, Number(args["baseline-repeats"]))),
+    judgeProvider,
   });
 }
 
@@ -230,8 +239,9 @@ async function save(name: string, data: object, markdown: { file: string; text: 
   await mkdir(dir, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   await writeFile(path.join(dir, `${stamp}${name}-${config.provider}.json`), JSON.stringify(data, null, 2));
-  await writeFile(path.join(dir, markdown.file), `${markdown.text}\n`);
-  console.info(`Saved eval/results/${stamp}${name}-${config.provider}.json and eval/results/${markdown.file}`);
+  const mdFile = markdown.file.replace(/\.md$/, `${fileSuffix}.md`);
+  await writeFile(path.join(dir, mdFile), `${markdown.text}\n`);
+  console.info(`Saved eval/results/${stamp}${name}-${config.provider}.json and eval/results/${mdFile}`);
 }
 
 const pct = (n: number, d: number) => (d === 0 ? "—" : `${((100 * n) / d).toFixed(1)}%`);
@@ -287,7 +297,7 @@ async function loadSavedBaselines(): Promise<{ file: string; rows: BaselineRow[]
 async function main() {
   const jobs = levels.flatMap((level) => cases.map((c) => ({ c, level })));
   console.info(
-    `${isFake ? "⚠️  FAKE STUB RUN — NOT A REAL RESULT\n" : ""}Provider ${config.provider} · model ${config.model} · ${cases.length} cases × levels ${levels.join(",")} = ${jobs.length} runs`,
+    `${isFake ? "⚠️  FAKE STUB RUN — NOT A REAL RESULT\n" : ""}Provider ${config.provider} · model ${config.model} · judge ${judgeConfig.model} · ${cases.length} cases × levels ${levels.join(",")} = ${jobs.length} runs`,
   );
   const started = Date.now();
   console.info("Grader controls:");
@@ -309,7 +319,7 @@ async function main() {
     ].join("\n");
     console.info(`\n${text}\n`);
     printOutside(g.outside);
-    await save("-grounding", { summary: text, config: { provider: config.provider, model: config.model }, groundingRows: g.rows, groundingBaselineRows: g.baselineRows }, { file: "grounding-latest.md", text });
+    await save("-grounding", { summary: text, config: { provider: config.provider, model: config.model, judgeModel: judgeConfig.model }, groundingRows: g.rows, groundingBaselineRows: g.baselineRows }, { file: "grounding-latest.md", text });
     return;
   }
   console.info("Adversarial cases:");
@@ -422,7 +432,7 @@ async function main() {
     "",
     {
       summary,
-      config: { provider: config.provider, model: config.model },
+      config: { provider: config.provider, model: config.model, judgeModel: judgeConfig.model },
       rows,
       baselineRows,
       ...(g ? { groundingRows: g.rows, groundingBaselineRows: g.baselineRows } : {}),

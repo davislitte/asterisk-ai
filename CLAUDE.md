@@ -44,7 +44,7 @@ Bonus prizes we target: **Best Build on Meta Open Weight Models** ($10K, require
 | Feature | Model | Notes |
 |---|---|---|
 | Guided tutoring, rubric feedback, question generation, grading | **Muse Spark** (Meta Model API) | Primary LLM |
-| "District-hosted mode": same features on self-hosted model | **Muse Spark Open** via Modal or Baseten | Baseten model id: `meta-models/muse-spark-open-1026` (NOT the id in Baseten's docs). Provider is a config switch. |
+| "District-hosted mode": same features on self-hosted model | **Muse Spark Open** via Modal or Baseten | Baseten model id: `meta-models/muse-spark-open` (checked live Oct 31: `-1026` returns 404; this is the id `GET /v1/models` lists). Provider is a config switch. |
 | Photo of handwritten work → feedback | **Muse Spark** (vision) | Student snaps a worksheet in the side panel |
 | Split a worksheet photo into individual problems | **SAM 3.1** | Crops each problem so feedback is per-problem (stretch) |
 | Comprehension check (text) | **Muse Spark** | Generates the 3 end questions for teacher approval; grades the student's typed answers. Text-only by decision (Oct 28): no voice input. |

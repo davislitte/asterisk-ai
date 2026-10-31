@@ -1,4 +1,5 @@
 import type { HelpLevel } from "@asterisk/shared";
+import type { AiProvider } from "../provider/config";
 import { baselinePromptV1 } from "../prompts/baseline";
 import { GROUNDING_JUDGE_PROMPT_VERSION, GroundingVerdict, groundingJudgePromptV1 } from "../prompts/grounding-judge";
 import { complete, completeJson } from "../provider/client";
@@ -32,6 +33,8 @@ export interface GroundingRow {
 
 type Pool = <T, R>(items: T[], fn: (item: T) => Promise<R>) => Promise<R[]>;
 
+let judgeProvider: AiProvider | undefined;
+
 async function judgeGrounding(studentMessage: string, reply: string): Promise<GroundingVerdict> {
   const result = await completeJson({
     purpose: "eval.grounding_judge",
@@ -39,6 +42,7 @@ async function judgeGrounding(studentMessage: string, reply: string): Promise<Gr
     schemaName: "grounding_verdict",
     schema: GroundingVerdict,
     reasoningEffort: "high",
+    provider: judgeProvider,
   });
   return result.data;
 }
@@ -128,7 +132,15 @@ async function runControls(pool: Pool) {
 
 const pct = (n: number, d: number) => (d === 0 ? "—" : `${((100 * n) / d).toFixed(1)}%`);
 
-export async function runGroundingEval(options: { levels: HelpLevel[]; pool: Pool; baselines: boolean; baselineRepeats: number }) {
+export async function runGroundingEval(options: {
+  levels: HelpLevel[];
+  pool: Pool;
+  baselines: boolean;
+  baselineRepeats: number;
+  /** Where the grounding judge runs; defaults to AI_PROVIDER. */
+  judgeProvider?: AiProvider;
+}) {
+  judgeProvider = options.judgeProvider;
   const controls = await runControls(options.pool);
   console.info(`  ${controls.line}`);
   for (const m of controls.misses) console.info(`  ✗ ${m}`);

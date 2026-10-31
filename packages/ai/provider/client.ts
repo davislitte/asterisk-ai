@@ -112,6 +112,14 @@ function backoffMs(attempt: number): number {
   return 500 * 2 ** attempt + Math.random() * 500;
 }
 
+/** For providers without schema-constrained decoding: state the required shape in the instructions. */
+function withSchemaInstruction(messages: ChatMessage[], format: JsonResponseFormat): ChatMessage[] {
+  const hint = `Reply with only a JSON object that matches this JSON Schema, and nothing else:\n${JSON.stringify(format.schema)}`;
+  const i = messages.findIndex((m) => m.role === "instructions" && typeof m.content === "string");
+  if (i === -1) return [{ role: "instructions", content: hint }, ...messages];
+  return messages.map((m, j) => (j === i ? { ...m, content: `${m.content as string}\n\n${hint}` } : m));
+}
+
 function toWireMessages(messages: ChatMessage[], config: ProviderConfig) {
   return messages.map((m) => {
     switch (m.role) {
@@ -157,9 +165,10 @@ async function chatCompletion(
   const maxAttempts = req.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
   const started = performance.now();
 
+  const schemaInPrompt = responseFormat && config.structuredOutput === "json_object";
   const body: Record<string, unknown> = {
     model: config.model,
-    messages: toWireMessages(req.messages, config),
+    messages: toWireMessages(schemaInPrompt ? withSchemaInstruction(req.messages, responseFormat) : req.messages, config),
   };
   const effort = wireReasoningEffort(config, req.reasoningEffort);
   if (effort) body.reasoning_effort = effort;
@@ -171,10 +180,9 @@ async function chatCompletion(
     }));
   }
   if (responseFormat) {
-    body.response_format = {
-      type: "json_schema",
-      json_schema: { name: responseFormat.name, schema: responseFormat.schema },
-    };
+    body.response_format = schemaInPrompt
+      ? { type: "json_object" }
+      : { type: "json_schema", json_schema: { name: responseFormat.name, schema: responseFormat.schema } };
   }
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };

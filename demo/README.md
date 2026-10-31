@@ -76,14 +76,15 @@ Schools are banning AI because students use it to skip the learning. Students wi
    - 7/25 divide by x and lose x = 0; 12/25 keep only the positive square root; 4/25 keep a negative width.
    - **Reteach plan:** a 43-minute lesson with new example problems, plus an exit ticket.
    - **How Asterisk built this report:** Muse Spark chose 12 read-only tool calls over 5 turns, then recounted each misconception against every student. It took 29 s and cost $0.17. Students appear to the model only as "Student 01", "Student 02" and so on.
+3. **District-hosted mode:** on the home page, **Where Asterisk's AI runs → Muse Spark Open · District-hosted**. The header label changes to "Muse Spark Open · district-hosted". Back in the Doc, ask the panel another question, such as `What should I check after I find both roots?`. It's the same guided, cited reply, now from Meta's open-weight model on infrastructure the district controls. Switch back to Muse Spark afterwards.
+   - Every step of this run sheet was rehearsed on Muse Spark Open too. Chat took 3–4 s, the photo 8.5 s, the rubric check 6 s and a class report 14 s.
+   - For the close: on the same 136 adversarial attempts, Muse Spark Open also leaked 0 answers, and it used no outside knowledge on 40 of 40 off-notes questions.
 
 ### 2:45–3:00 · Proof and close
 
 - **Answer leaks:** 0 of 136 adversarial attempts, against 7.4% for a typical "don't give answers" tutor prompt and 97.1% for plain Muse Spark. That's the same model, the same messages and the same judge ([eval results](../README.md#eval-results)).
 - **Grounding:** no outside knowledge in 40 of 40 answers to questions the notes don't cover, against 80% outside knowledge for the typical tutor prompt.
 - **Close:** Asterisk handles the mundane parts of learning faster, so students have time to take risks and build.
-
-District-hosted mode (Muse Spark Open) isn't set up yet, so it isn't in this run.
 
 ## The handwritten photo
 

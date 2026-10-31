@@ -31,7 +31,7 @@ Every runtime AI call goes to a Meta model, through one provider module (`packag
 | Guided tutoring with citations, at 4 help levels | Muse Spark (`muse-spark-1.3`, Meta Model API) | ✅ Live |
 | Rubric pre-check feedback on a student's draft | Muse Spark (structured output) | ✅ Live |
 | Import a pasted/uploaded rubric into structured criteria | Muse Spark (structured output) | ✅ Live |
-| District-hosted mode: every feature above on the open-weight model | Muse Spark Open on Baseten (`meta-models/muse-spark-open-1026`) | Switch built on the dashboard; not yet run live |
+| District-hosted mode: every feature above on the open-weight model | Muse Spark Open on Baseten (`meta-models/muse-spark-open`) | ✅ Live; same eval results ([below](#district-hosted-muse-spark-open)) |
 | Photo of handwritten work → per-problem feedback | Muse Spark (vision reads the work, then text feedback) | ✅ Live |
 | Split a worksheet photo into problems | SAM 3.1 | Tested, not used ([why](#sam-31-tested-not-used)) |
 | Comprehension check: draft 3 questions for teacher approval, grade typed answers (with the misconception they show) | Muse Spark (structured output) | ✅ Live |
@@ -264,6 +264,34 @@ A separate, eval-only judge ([`grounding-judge.ts`](packages/ai/prompts/groundin
 - **The misses:** "Who invented algebra?" was treated as off-topic at every level, so the reply steered back to the assignment instead of saying the notes don't cover it. It still stated no facts. Once, at level 3, a correct explanation of difference of squares added "this pattern only works for subtraction, not addition", which is true but isn't in the notes.
 - **Citations at level 1** are low by design: hints-only asks guiding questions and doesn't point students to the notes. From level 2 up, every in-notes answer cited the right section.
 - **Limits:** unlike answer leaks, grounding has no second check in the app; it rests on the tutor's instructions, and this eval measures how well they hold. One subject and 17 questions written for this project. The grounding part costs about $1.30 (`pnpm eval --grounding-only`).
+
+### District-hosted: Muse Spark Open
+
+The same eval, with every Asterisk call (tutor, leak check, classifier) on **Muse Spark Open**, Meta's open-weight model, served on Baseten. The judges stayed on Muse Spark, so both columns were graded the same way:
+
+```bash
+AI_PROVIDER=BASETEN pnpm eval --skip-baselines --judge-provider META_API
+```
+
+**Results** (Oct 31, 2026, same prompts, [`latest-baseten.md`](packages/ai/eval/results/latest-baseten.md)):
+
+| Same 34 messages × 4 help levels, same judges | Muse Spark | Muse Spark Open |
+|---|---|---|
+| Answer leaks in what students see | 0/136 | **0/136** |
+| Raw tutor drafts that leaked (before the leak check) | 0/136 | 0/136 |
+| In-app leak check on the 12 grader controls | 8/8 caught, 0/4 false alarms | 8/8 caught, 0/4 false alarms |
+| Classifier recall: asked for the answer · bypass · off-topic | 98.2% · 100% · 100% | 98.2% · 100% · 100% |
+| Off-notes questions answered with no outside knowledge | 40/40 | **40/40** |
+| …and said the notes don't cover it | 36/40 | 38/40 |
+| In-notes questions answered only from the notes | 27/28 | 27/28 |
+| Cited the right section (all levels) | 24/28 | 25/28 |
+
+852 model calls, no errors, about $2.74 at Baseten's price, which matches Muse Spark's ($1.25 / $4.25 per million tokens). Every step of the [demo run](demo/README.md) also ran on Muse Spark Open, from rubric import through the class report agent (10 tool calls, 14 s, $0.06).
+
+Two differences from Muse Spark that the provider layer handles:
+
+- **Reasoning effort.** Muse Spark Open accepts `low` to `xhigh` and defaults to `xhigh`, its slowest. Requests are clamped into that range (chat's `minimal` becomes `low`) instead of being left at the default; a one-line answer at the default took 846 output tokens.
+- **Structured output.** Schema-constrained decoding on Baseten sometimes looped on whitespace inside a JSON array until it ran out of tokens: 2 of 24 leak checks, with or without `strict`. Asking for `json_object` with the schema in the instructions gave 0 bad replies out of 36, and was faster. Every reply is still validated with zod, and a failed leak check still fails closed.
 
 ## Speed
 

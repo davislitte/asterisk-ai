@@ -39,6 +39,12 @@ export interface ProviderConfig {
   instructionRole: "developer" | "system";
   /** The `reasoning_effort` values the model accepts; requests are clamped into this range. */
   reasoningEfforts: readonly ReasoningEffort[];
+  /**
+   * How structured output is requested. "json_schema" constrains decoding to the
+   * schema. "json_object" only guarantees valid JSON; the schema goes into the
+   * instructions. Either way the reply is validated with zod.
+   */
+  structuredOutput: "json_schema" | "json_object";
 }
 
 type Env = Record<string, string | undefined>;
@@ -71,15 +77,19 @@ export function resolveProviderConfig(
         model: env.META_MODEL?.trim() || "muse-spark-1.3",
         instructionRole: "developer",
         reasoningEfforts: MUSE_SPARK_EFFORTS,
+        structuredOutput: "json_schema",
       };
     case "BASETEN":
       return {
         provider,
         baseUrl: stripTrailingSlash(env.BASETEN_BASE_URL?.trim() || "https://inference.baseten.co/v1"),
         apiKey: required(env, "BASETEN_API_KEY"),
-        model: env.BASETEN_MODEL?.trim() || "meta-models/muse-spark-open-1026",
+        model: env.BASETEN_MODEL?.trim() || "meta-models/muse-spark-open",
         instructionRole: "system",
         reasoningEfforts: MUSE_SPARK_OPEN_EFFORTS,
+        // Schema-constrained decoding on Baseten sometimes loops on whitespace inside an
+        // array until max tokens (2/24 leak checks, strict or not); json_object: 0/36.
+        structuredOutput: "json_object",
       };
     case "MODAL":
       return {
@@ -89,6 +99,7 @@ export function resolveProviderConfig(
         model: env.MODAL_MODEL?.trim() || "muse-spark-open",
         instructionRole: "system",
         reasoningEfforts: MUSE_SPARK_OPEN_EFFORTS,
+        structuredOutput: "json_object",
       };
     case "FAKE":
       assertFakeAllowed(env);
@@ -99,6 +110,7 @@ export function resolveProviderConfig(
         model: FAKE_MODEL_ID,
         instructionRole: "developer",
         reasoningEfforts: MUSE_SPARK_EFFORTS,
+        structuredOutput: "json_schema",
       };
   }
 }

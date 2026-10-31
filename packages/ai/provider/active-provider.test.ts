@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
+import { z } from "zod";
 import { setProviderResolver } from "./active-provider";
-import { complete } from "./client";
+import { complete, completeJson } from "./client";
 import { resolveProviderConfig, wireReasoningEffort } from "./config";
 import { consoleModelCallLogger, setModelCallLogger } from "./logging";
 import { setSpendGuard } from "./spend-guard";
@@ -22,7 +23,7 @@ describe("reasoning effort per provider", () => {
   });
 
   it("serves Spark Open on Baseten with the system role", () => {
-    assert.equal(open.model, "meta-models/muse-spark-open-1026");
+    assert.equal(open.model, "meta-models/muse-spark-open");
     assert.equal(open.instructionRole, "system");
   });
 });
@@ -72,9 +73,41 @@ describe("provider resolver", () => {
     });
     assert.equal(res.provider, "BASETEN");
     assert.match(sent[0]!.url, /^https:\/\/inference\.baseten\.co\/v1\//);
-    assert.equal(sent[0]!.body.model, "meta-models/muse-spark-open-1026");
+    assert.equal(sent[0]!.body.model, "meta-models/muse-spark-open");
     assert.equal(sent[0]!.body.reasoning_effort, "low");
     assert.deepEqual((sent[0]!.body.messages as { role: string }[]).map((m) => m.role), ["system", "user"]);
+  });
+
+  it("asks Spark Open for json_object with the schema in the instructions, Muse Spark for json_schema", async () => {
+    mock.restoreAll();
+    mock.method(globalThis, "fetch", async (url: string, init: { body: string }) => {
+      sent.push({ url, body: JSON.parse(init.body) });
+      return new Response(JSON.stringify({ choices: [{ message: { content: '{"ok":true}' }, finish_reason: "stop" }] }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+    const req = {
+      purpose: "test",
+      messages: [
+        { role: "instructions" as const, content: "rules" },
+        { role: "user" as const, content: "hi" },
+      ],
+      schemaName: "s",
+      schema: z.strictObject({ ok: z.boolean() }),
+    };
+    setProviderResolver(() => "BASETEN");
+    assert.deepEqual((await completeJson(req)).data, { ok: true });
+    const open = sent[0]!.body;
+    assert.deepEqual(open.response_format, { type: "json_object" });
+    const system = (open.messages as { role: string; content: string }[])[0]!;
+    assert.equal(system.role, "system");
+    assert.match(system.content, /^rules\n\nReply with only a JSON object[\s\S]*"ok"/);
+
+    setProviderResolver(() => "META_API");
+    await completeJson(req);
+    const meta = sent[1]!.body;
+    assert.equal((meta.response_format as { type: string }).type, "json_schema");
+    assert.equal((meta.messages as { content: string }[])[0]!.content, "rules");
   });
 
   it("falls back to AI_PROVIDER when the resolver returns undefined, and a request's own provider wins", async () => {
