@@ -20,6 +20,7 @@ export default async function MonitorPage({ params }: PageProps<"/assignments/[a
   const assignment = await getAssignmentForTeacher(teacher.id, assignmentId);
   if (!assignment) notFound();
   const { feed, students, totals, truncated } = await getMonitorData(assignment.id, assignment.classId);
+  const active = students.filter((s) => s.messages > 0);
 
   return (
     <div className="flex flex-col gap-6">
@@ -43,6 +44,8 @@ export default async function MonitorPage({ params }: PageProps<"/assignments/[a
         <CardContent className="overflow-x-auto">
           {students.length === 0 ? (
             <p className="text-muted-foreground">No students have joined this class yet.</p>
+          ) : active.length === 0 ? (
+            <p className="text-muted-foreground">No student has messaged Asterisk on this assignment yet.</p>
           ) : (
             <table className="w-full text-sm">
               <thead className="text-left text-muted-foreground">
@@ -56,7 +59,7 @@ export default async function MonitorPage({ params }: PageProps<"/assignments/[a
                 </tr>
               </thead>
               <tbody>
-                {students.map((s) => (
+                {active.map((s) => (
                   <tr key={s.studentId} className="border-t">
                     <td className="py-2 pr-4 font-medium">{s.name}</td>
                     <td className="py-2 pr-4 text-right tabular-nums">{s.messages}</td>
@@ -68,6 +71,12 @@ export default async function MonitorPage({ params }: PageProps<"/assignments/[a
                 ))}
               </tbody>
             </table>
+          )}
+          {active.length > 0 && active.length < students.length && (
+            <p className="mt-3 text-sm text-muted-foreground">
+              {students.length - active.length} more {students.length - active.length === 1 ? "student hasn't" : "students haven't"}{" "}
+              messaged Asterisk on this assignment.
+            </p>
           )}
         </CardContent>
       </Card>
