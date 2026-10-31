@@ -31,14 +31,23 @@ Every runtime AI call goes to a Meta model, through one provider module (`packag
 | Guided tutoring with citations, at 4 help levels | Muse Spark (`muse-spark-1.3`, Meta Model API) | ✅ Live |
 | Rubric pre-check feedback on a student's draft | Muse Spark (structured output) | ✅ Live |
 | Import a pasted/uploaded rubric into structured criteria | Muse Spark (structured output) | ✅ Live |
-| District-hosted mode | Muse Spark Open via Baseten / Modal | Planned: the provider switch is in place, the hosted model isn't set up yet |
+| District-hosted mode: every feature above on the open-weight model | Muse Spark Open on Baseten (`meta-models/muse-spark-open-1026`) | Switch built on the dashboard; not yet run live |
 | Photo of handwritten work → per-problem feedback | Muse Spark (vision reads the work, then text feedback) | ✅ Live |
-| Split a worksheet photo into problems | SAM 3.1 | Planned (stretch) |
+| Split a worksheet photo into problems | SAM 3.1 | Tested, not used ([why](#sam-31-tested-not-used)) |
 | Comprehension check: draft 3 questions for teacher approval, grade typed answers (with the misconception they show) | Muse Spark (structured output) | ✅ Live |
 | Class misconception report + reteach plan | Muse Spark as a tool-calling agent, then one recount call per misconception | ✅ Live |
 | Off-topic / jailbreak classifier, answer-leak check | Muse Spark (structured output) | ✅ Live; measured by `pnpm eval` below |
 
 We use `muse-spark-1.3`, not the cheaper `-contributor` variant, because that variant uses request data for training and our users are minors.
+
+### SAM 3.1: tested, not used
+
+We tried SAM 3.1 (`sam-3.1` on the Meta Model API) for two jobs on photos of handwritten work, and it didn't earn a place in the pipeline:
+
+- **Splitting a worksheet into problems.** Concept prompts like "math problem" returned the whole page, and "handwritten equation", "handwriting", "text" or "line of text" found nothing. Box prompts drawn around each problem came back as the same boxes with low confidence (0.36–0.5). SAM segments objects, and a written problem isn't one. It did find every check mark on the page.
+- **Cropping to the page before reading.** SAM finds the sheet of paper reliably (confidence 0.94, even on a cluttered desk). But with the worksheet at 30% of a 3000 px desk photo, Muse Spark transcribed every line exactly from the full photo, from today's 1600 px downscale and from SAM's crop alike, two runs each. The crop only saved about 28% of input tokens and added 1.5–4 s.
+
+So photos go straight to Muse Spark vision, which already reads each problem separately.
 
 ### `FAKE` provider: a dev-only test stub, not a model
 
@@ -97,7 +106,7 @@ A class code is shared with every student, so the app can't trust any one of the
 - Students are stored by display name only. No emails or accounts.
 - Photos of handwritten work are never stored; only what Asterisk read from them is.
 - Row-level security is enabled on every table, and no policies grant access. Supabase's public REST API therefore can't read student data; only the server-side app connection can.
-- **District-hosted mode (planned)** will run the same features on Muse Spark Open, served on infrastructure the school or district controls, so student data never leaves it. Every model call already goes through one provider switch for this.
+- **District-hosted mode** runs the same features on Muse Spark Open, Meta's open-weight model, served on infrastructure the school or district controls (Baseten in this build), so student data stays there. The teacher dashboard's **Where Asterisk's AI runs** switch moves every model call at once: the app installs a provider resolver in `packages/ai`, so no feature code changes. Muse Spark Open only accepts reasoning efforts from `low` to `xhigh` and defaults to `xhigh`, so requests are clamped into that range rather than left at its slowest default.
 
 ## Repo layout
 

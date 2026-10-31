@@ -1,4 +1,5 @@
 export { AiProvider, type ProviderConfig, resolveProviderConfig } from "./provider/config";
+export { type ProviderResolver, setProviderResolver } from "./provider/active-provider";
 export {
   type ChatMessage,
   type CompletionRequest,

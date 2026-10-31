@@ -15,6 +15,18 @@ import { z } from "zod";
 export const AiProvider = z.enum(["META_API", "BASETEN", "MODAL", "FAKE"]);
 export type AiProvider = z.infer<typeof AiProvider>;
 
+/** Reasoning efforts from least to most. Each provider accepts a contiguous range of these. */
+export const REASONING_EFFORTS = ["minimal", "low", "medium", "high", "xhigh", "max"] as const;
+export type ReasoningEffort = (typeof REASONING_EFFORTS)[number];
+
+/** muse-spark-1.3 accepts all of them (it rejects "none", which the API schema also lists). */
+const MUSE_SPARK_EFFORTS = REASONING_EFFORTS;
+/**
+ * Muse Spark Open accepts low to xhigh and defaults to xhigh, its slowest
+ * (dev.meta.ai/docs/muse-spark-open/prompting), so an effort is always sent.
+ */
+const MUSE_SPARK_OPEN_EFFORTS = ["low", "medium", "high", "xhigh"] as const satisfies readonly ReasoningEffort[];
+
 export interface ProviderConfig {
   provider: AiProvider;
   baseUrl: string;
@@ -25,8 +37,8 @@ export interface ProviderConfig {
    * remapped to developer level). Self-hosted open-weight servers expect `system`.
    */
   instructionRole: "developer" | "system";
-  /** Whether the server accepts `reasoning_effort`. */
-  supportsReasoningEffort: boolean;
+  /** The `reasoning_effort` values the model accepts; requests are clamped into this range. */
+  reasoningEfforts: readonly ReasoningEffort[];
 }
 
 type Env = Record<string, string | undefined>;
@@ -58,7 +70,7 @@ export function resolveProviderConfig(
         // Not the `-contributor` variant: that one trains on request data, and our users are minors.
         model: env.META_MODEL?.trim() || "muse-spark-1.3",
         instructionRole: "developer",
-        supportsReasoningEffort: true,
+        reasoningEfforts: MUSE_SPARK_EFFORTS,
       };
     case "BASETEN":
       return {
@@ -67,7 +79,7 @@ export function resolveProviderConfig(
         apiKey: required(env, "BASETEN_API_KEY"),
         model: env.BASETEN_MODEL?.trim() || "meta-models/muse-spark-open-1026",
         instructionRole: "system",
-        supportsReasoningEffort: false,
+        reasoningEfforts: MUSE_SPARK_OPEN_EFFORTS,
       };
     case "MODAL":
       return {
@@ -76,7 +88,7 @@ export function resolveProviderConfig(
         apiKey: env.MODAL_API_KEY?.trim() || undefined,
         model: env.MODAL_MODEL?.trim() || "muse-spark-open",
         instructionRole: "system",
-        supportsReasoningEffort: false,
+        reasoningEfforts: MUSE_SPARK_OPEN_EFFORTS,
       };
     case "FAKE":
       assertFakeAllowed(env);
@@ -86,9 +98,22 @@ export function resolveProviderConfig(
         apiKey: undefined,
         model: FAKE_MODEL_ID,
         instructionRole: "developer",
-        supportsReasoningEffort: true,
+        reasoningEfforts: MUSE_SPARK_EFFORTS,
       };
   }
+}
+
+/**
+ * The effort to send: the requested one if the model accepts it, otherwise the
+ * nearest accepted one (Muse Spark Open turns "minimal" into "low", "max" into "xhigh").
+ */
+export function wireReasoningEffort(config: ProviderConfig, requested: ReasoningEffort | undefined): ReasoningEffort | undefined {
+  if (!requested || config.reasoningEfforts.length === 0) return undefined;
+  if (config.reasoningEfforts.includes(requested)) return requested;
+  const rank = REASONING_EFFORTS.indexOf(requested);
+  const ranks = config.reasoningEfforts.map((e) => REASONING_EFFORTS.indexOf(e));
+  const nearest = rank < Math.min(...ranks) ? Math.min(...ranks) : Math.max(...ranks);
+  return REASONING_EFFORTS[nearest];
 }
 
 export const FAKE_MODEL_ID = "fake-test-stub";

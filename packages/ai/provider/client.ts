@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { type AiProvider, type ProviderConfig, resolveProviderConfig } from "./config";
+import { activeProvider } from "./active-provider";
+import { type AiProvider, type ProviderConfig, type ReasoningEffort, resolveProviderConfig, wireReasoningEffort } from "./config";
 import { ModelCallError, isRetryableStatus } from "./errors";
 import { fakeChatCompletion } from "./fake";
 import { checkSpend } from "./spend-guard";
@@ -33,8 +34,7 @@ export type ChatMessage =
   | { role: "assistant"; content: string | ContentPart[]; toolCalls?: ToolCall[] }
   | { role: "tool"; toolCallId: string; content: string };
 
-/** Values muse-spark-1.3 accepts (the API schema also lists "none", which this model rejects). */
-export type ReasoningEffort = "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+export type { ReasoningEffort };
 
 export interface CompletionRequest {
   /** What this call is for, e.g. "tutor", "leak_check". Logged with every call. */
@@ -45,7 +45,7 @@ export interface CompletionRequest {
   /** Per-attempt timeout. Muse Spark reasons before answering, so allow headroom. */
   timeoutMs?: number;
   maxAttempts?: number;
-  /** Force a provider for this call instead of AI_PROVIDER. */
+  /** Force a provider for this call instead of the app's choice (setProviderResolver) or AI_PROVIDER. */
   provider?: AiProvider;
   /** Functions the model may call. The API only supports tool_choice "auto". */
   tools?: ToolDefinition[];
@@ -153,7 +153,7 @@ async function chatCompletion(
   req: CompletionRequest,
   responseFormat?: JsonResponseFormat,
 ): Promise<CompletionResult> {
-  const config = resolveProviderConfig(process.env, req.provider);
+  const config = resolveProviderConfig(process.env, req.provider ?? (await activeProvider()));
   const maxAttempts = req.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
   const started = performance.now();
 
@@ -161,9 +161,8 @@ async function chatCompletion(
     model: config.model,
     messages: toWireMessages(req.messages, config),
   };
-  if (req.reasoningEffort && config.supportsReasoningEffort) {
-    body.reasoning_effort = req.reasoningEffort;
-  }
+  const effort = wireReasoningEffort(config, req.reasoningEffort);
+  if (effort) body.reasoning_effort = effort;
   if (req.maxCompletionTokens) body.max_completion_tokens = req.maxCompletionTokens;
   if (req.tools?.length) {
     body.tools = req.tools.map((t) => ({

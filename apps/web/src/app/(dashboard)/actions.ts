@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db/client";
 import { classes } from "@/db/schema";
+import { type AiHost, districtHostConfigured, setAiHost } from "@/server/ai-host";
 import { requireTeacher } from "@/server/auth";
 import { getClassForTeacher } from "@/server/classes";
 import { withUniqueJoinCode } from "@/server/join-code";
@@ -44,4 +45,20 @@ export async function regenerateJoinCode(classId: string): Promise<{ joinCode?: 
   revalidatePath(`/classes/${klass.id}`);
   revalidatePath("/");
   return { joinCode: updated!.joinCode };
+}
+
+export async function chooseAiHost(host: AiHost): Promise<{ error?: string }> {
+  await requireTeacher();
+  if (host !== "meta" && host !== "district") return { error: "Unknown option" };
+  if (host === "district" && !districtHostConfigured()) {
+    return { error: "District-hosted mode needs BASETEN_API_KEY in .env.local." };
+  }
+  try {
+    await setAiHost(host);
+  } catch (err) {
+    console.error("[ai-host] couldn't save the setting", err instanceof Error ? err.message : err);
+    return { error: "Couldn't save that setting. Has the app_settings migration been applied?" };
+  }
+  revalidatePath("/", "layout");
+  return {};
 }

@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { AI_HOST_LABELS, effectiveAiHost } from "@/server/ai-host";
 import { requireTeacher } from "@/server/auth";
 import { logout } from "../login/actions";
 
 export default async function DashboardLayout({ children }: LayoutProps<"/">) {
-  const teacher = await requireTeacher();
+  const [teacher, aiHost] = await Promise.all([requireTeacher(), effectiveAiHost()]);
+  const host = AI_HOST_LABELS[aiHost];
 
   return (
     <>
@@ -14,6 +16,16 @@ export default async function DashboardLayout({ children }: LayoutProps<"/">) {
             Asterisk<span className="text-primary">*</span>
           </Link>
           <div className="flex items-center gap-3 text-sm">
+            <Link
+              href="/"
+              title={`AI: ${host.model} on ${host.where}. Change it on the home page.`}
+              className={`hidden rounded-full px-2.5 py-0.5 text-xs font-medium sm:inline ${
+                aiHost === "district" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+              }`}
+            >
+              {host.model}
+              {aiHost === "district" ? " · district-hosted" : ""}
+            </Link>
             <span className="text-muted-foreground">{teacher.displayName}</span>
             <form action={logout}>
               <Button type="submit" variant="ghost" size="sm">

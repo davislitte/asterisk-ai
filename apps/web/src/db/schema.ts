@@ -305,6 +305,13 @@ export const modelCallLogs = pgTable(
   (t) => [index("model_call_logs_created_idx").on(t.createdAt)],
 ).enableRLS();
 
+/** App-wide settings, one row per key (e.g. "ai_host": where model calls are served). */
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}).enableRLS();
+
 // Relations power `db.query.*.findMany({ with: ... })`; they don't change the SQL schema.
 
 export const sourcesRelations = relations(sources, ({ many }) => ({
