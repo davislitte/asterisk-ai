@@ -14,6 +14,8 @@ export const JoinRequest = z.object({
     .toUpperCase()
     .regex(/^[A-Z0-9]{6}$/, "Join codes are 6 letters or numbers"),
   displayName: DisplayName,
+  /** Required only by hosted sites that set STUDENT_ACCESS_KEY. */
+  accessKey: z.string().trim().max(200).optional(),
 });
 export type JoinRequest = z.infer<typeof JoinRequest>;
 
@@ -174,5 +176,9 @@ export const FinishRequest = z.object({
 });
 export type FinishRequest = z.infer<typeof FinishRequest>;
 
-export const ApiError = z.object({ error: z.string() });
+export const ApiError = z.object({
+  error: z.string(),
+  /** "access_key": this site needs an access key to join; the join screen asks for it. */
+  code: z.literal("access_key").optional(),
+});
 export type ApiError = z.infer<typeof ApiError>;

@@ -22,12 +22,6 @@ function sessionSecret(): string {
   return secret;
 }
 
-export function teacherPasscode(): string {
-  const passcode = process.env.TEACHER_PASSCODE;
-  if (!passcode) throw new Error("TEACHER_PASSCODE is not set (see .env.example).");
-  return passcode;
-}
-
 /** The signed-in teacher, or null. Re-verified on every call; never trusts the client. */
 export async function getTeacher(): Promise<Teacher | null> {
   const token = (await cookies()).get(COOKIE_NAME)?.value;

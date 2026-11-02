@@ -93,11 +93,12 @@ Each student also gets a page with their latest rubric pre-check (and how it cha
 
 ## Cost protection
 
-A class code is shared with every student, so the app can't trust any one of them with unlimited paid model calls. There are three layers:
+A class code is shared with every student, so the app can't trust any one of them with unlimited paid model calls. There are four layers:
 
 1. **A hard daily spending cap** (`DAILY_SPEND_CAP_USD`, default $5). Before every paid model call, the AI layer checks today's spend (UTC day), computed from the token counts in `model_call_logs` at Muse Spark list price. Once the cap is reached, every AI feature pauses until the next day. Students see a plain "today's limit" message, and the teacher's dashboard shows the spend against the cap. A test fails if any code imports model functions in a way that would skip the cap.
 2. **Per-student rate limits:** chat is limited to 8 messages a minute and 150 a day; rubric checks and photos each to 6 an hour and 20 a day. The counts come from the database, so they hold across server instances.
 3. **One AI request at a time per student,** so a burst of parallel requests can't slip past the counts. Submitting the comprehension check can't be paid for twice.
+4. **A hosted site is closed to the public.** The demo join code is in this README, so a deployed copy also asks students for an access key (`STUDENT_ACCESS_KEY`). In production, joining stays closed until that key is set, and sign-in stays closed until the teacher passcode is at least 16 characters. Locally, neither applies.
 
 `pnpm eval` has its own cap (`--max-usd`, default $10). For a hard backstop no app bug can bypass, also set a spending limit on your Meta developer account.
 

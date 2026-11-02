@@ -19,6 +19,7 @@ export class ApiCallError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly code?: ApiError["code"],
   ) {
     super(message);
   }
@@ -44,7 +45,7 @@ async function call<T>(path: string, schema: z.ZodType<T>, init: { token?: strin
   const json: unknown = await res.json().catch(() => null);
   if (!res.ok) {
     const err = ApiError.safeParse(json);
-    throw new ApiCallError(err.success ? err.data.error : GENERIC, res.status);
+    throw new ApiCallError(err.success ? err.data.error : GENERIC, res.status, err.success ? err.data.code : undefined);
   }
   const parsed = schema.safeParse(json);
   if (!parsed.success) throw new ApiCallError(GENERIC, res.status);

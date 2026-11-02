@@ -5,12 +5,15 @@ import { ApiCallError, api } from "./api";
 export function JoinScreen({ onJoined, notice }: { onJoined: (session: JoinResponse) => void; notice?: string }) {
   const [joinCode, setJoinCode] = useState("");
   const [displayName, setDisplayName] = useState("");
+  // Shown only after a hosted site says it needs one (STUDENT_ACCESS_KEY).
+  const [needsKey, setNeedsKey] = useState(false);
+  const [accessKey, setAccessKey] = useState("");
   const [error, setError] = useState(notice);
   const [pending, setPending] = useState(false);
 
   async function submit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    const parsed = JoinRequest.safeParse({ joinCode, displayName });
+    const parsed = JoinRequest.safeParse({ joinCode, displayName, ...(needsKey ? { accessKey } : {}) });
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message);
       return;
@@ -20,6 +23,7 @@ export function JoinScreen({ onJoined, notice }: { onJoined: (session: JoinRespo
     try {
       onJoined(await api.join(parsed.data));
     } catch (err) {
+      if (err instanceof ApiCallError && err.code === "access_key") setNeedsKey(true);
       setError(err instanceof ApiCallError ? err.message : "Couldn't join. Try again.");
     } finally {
       setPending(false);
@@ -61,6 +65,19 @@ export function JoinScreen({ onJoined, notice }: { onJoined: (session: JoinRespo
             Your teacher can see your name and your chats with Asterisk. Asterisk never asks for your email.
           </span>
         </label>
+        {needsKey && (
+          <label className="flex flex-col gap-1.5">
+            <span className="font-medium">Access key</span>
+            <input
+              className="input font-mono"
+              type="password"
+              value={accessKey}
+              onChange={(e) => setAccessKey(e.target.value)}
+              autoComplete="off"
+              autoFocus
+            />
+          </label>
+        )}
         {error && (
           <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-red-700">
             {error}
