@@ -104,7 +104,7 @@ A class code is shared with every student, so the app can't trust any one of the
 3. **One AI request at a time per student,** so a burst of parallel requests can't slip past the counts. Submitting the comprehension check can't be paid for twice.
 4. **A hosted site is closed to the public.** The demo join code is in this README, so a deployed copy also asks students for an access key (`STUDENT_ACCESS_KEY`). In production, joining stays closed until that key is set, and sign-in stays closed until the teacher passcode is at least 16 characters. Locally, neither applies.
 
-`pnpm eval` has its own cap (`--max-usd`, default $10). For a hard backstop no app bug can bypass, also set a spending limit on your Meta developer account.
+`pnpm eval` has its own cap (`--max-usd`, default $10). The Meta Model API's monthly spend limit only sends an email alert and doesn't stop usage, so the daily cap above is what actually stops spending on that API. Set the alert anyway.
 
 ## Student privacy
 
