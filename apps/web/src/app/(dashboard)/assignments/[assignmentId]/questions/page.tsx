@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LocalDateTime } from "@/components/local-date-time";
 import { getAssignmentForTeacher } from "@/server/assignments";
-import { requireTeacher } from "@/server/auth";
+import { requireViewer } from "@/server/auth";
 import { listCheckQuestions, listComprehensionResponses } from "@/server/check-questions";
 import { QuestionsEditor } from "./questions-editor";
 
@@ -16,7 +16,7 @@ const LEVEL_STYLE = [
 
 export default async function QuestionsPage({ params }: PageProps<"/assignments/[assignmentId]/questions">) {
   const { assignmentId } = await params;
-  const teacher = await requireTeacher();
+  const teacher = await requireViewer();
   const assignment = await getAssignmentForTeacher(teacher.id, assignmentId);
   if (!assignment) notFound();
   const [questions, responses] = await Promise.all([

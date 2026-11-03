@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LocalDateTime } from "@/components/local-date-time";
 import { getAssignmentForTeacher } from "@/server/assignments";
-import { requireTeacher } from "@/server/auth";
+import { requireViewer } from "@/server/auth";
 import { getLatestClassReport } from "@/server/reports/class-report";
 import { flagCounts, loadClassWork } from "@/server/reports/class-work";
 import { listChatHistory } from "@/server/student/data";
@@ -25,7 +25,7 @@ export default async function StudentReportPage({
   params,
 }: PageProps<"/assignments/[assignmentId]/report/students/[studentId]">) {
   const { assignmentId, studentId } = await params;
-  const teacher = await requireTeacher();
+  const teacher = await requireViewer();
   const assignment = await getAssignmentForTeacher(teacher.id, assignmentId);
   if (!assignment) notFound();
   const [work, report] = await Promise.all([

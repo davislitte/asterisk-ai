@@ -29,6 +29,14 @@ export function decodeSessionToken(
   return teacherId;
 }
 
+/**
+ * Guest sessions are signed with a different key, so a guest token (which anyone
+ * can get) can never be replayed as a teacher token.
+ */
+export function guestSessionSecret(secret: string): string {
+  return `guest:${secret}`;
+}
+
 /** Constant-time passcode comparison (hashing first equalizes lengths). */
 export function passcodeMatches(input: string, expected: string): boolean {
   const a = createHash("sha256").update(input).digest();

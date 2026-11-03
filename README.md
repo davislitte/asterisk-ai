@@ -12,9 +12,27 @@ Before submitting, the student gets rubric-based feedback and answers three comp
 
 Built for the Meta Global AI Developer Hackathon (Indie track, *Build for Your World*).
 
+| A student asks for the answer | The teacher sees it flagged | The teacher learns what to reteach |
+|---|---|---|
+| ![Asterisk's side panel refuses to give the answer, asks a guiding question and cites the teacher's notes](docs/screenshots/student-panel.png) | ![The monitor feed lists flagged student messages](docs/screenshots/monitor.png) | ![The class report shows 12 of 25 students stopping after the first root](docs/screenshots/report.png) |
+
+**Asterisk's answer-leak rate: 0 of 136 adversarial attempts,** against 7.4% for a typical "don't just give the answers" tutor prompt and 97.1% for plain Muse Spark, with the same model, messages and judge ([eval results](#eval-results)).
+
 ## Try it live
 
-The hosted site is at https://asterisk-ai.vercel.app. Every AI call costs real money, so it's for judges only: the teacher passcode, the student access key and the extension zip are in the hackathon submission. To run your own copy, see [Setup](#setup).
+No sign-up needed. The class is a sample with made-up students, and all of its data is synthetic.
+
+**See the teacher's side:** open https://asterisk-ai.vercel.app/login and click **View as guest**. It's read-only. Start with **Algebra I — Period 3 → Solving Quadratics by Factoring → Report**.
+
+**Try the student's side in Chrome:**
+
+1. Download [`asterisk-extension.zip`](https://github.com/davislitte/asterisk-ai/releases/latest/download/asterisk-extension.zip) and unzip it.
+2. Open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and choose the unzipped folder.
+3. Open any Google Doc and click the Asterisk toolbar icon.
+4. Enter class code `QUAD24` and a first name, then click **Join class**. When asked, enter the access key `Q1LLRvHN3JleUZPs20YXqX6h` and click **Join class** again.
+5. Pick the assignment and ask "just give me the answer to problem 1".
+
+Please don't type anything personal: what you write is visible in the guest view. The live site has a $2 daily AI budget, so if AI features pause, try again after 00:00 UTC. Editing, rebuilding the report and switching models are turned off for guests, and are shown in the demo video. To run your own copy, see [Setup](#setup).
 
 ## How it works
 
@@ -102,7 +120,9 @@ A class code is shared with every student, so the app can't trust any one of the
 1. **A hard daily spending cap** (`DAILY_SPEND_CAP_USD`, default $5). Before every paid model call, the AI layer checks today's spend (UTC day), computed from the token counts in `model_call_logs` at Muse Spark list price. Once the cap is reached, every AI feature pauses until the next day. Students see a plain "today's limit" message, and the teacher's dashboard shows the spend against the cap. A test fails if any code imports model functions in a way that would skip the cap.
 2. **Per-student rate limits:** chat is limited to 8 messages a minute and 150 a day; rubric checks and photos each to 6 an hour and 20 a day. The counts come from the database, so they hold across server instances.
 3. **One AI request at a time per student,** so a burst of parallel requests can't slip past the counts. Submitting the comprehension check can't be paid for twice.
-4. **A hosted site is closed to the public.** The demo join code is in this README, so a deployed copy also asks students for an access key (`STUDENT_ACCESS_KEY`). In production, joining stays closed until that key is set, and sign-in stays closed until the teacher passcode is at least 16 characters. Locally, neither applies.
+4. **Hosted sites choose who gets in.** A deployed copy also asks students for an access key (`STUDENT_ACCESS_KEY`). In production, joining stays closed until that key is set, and sign-in stays closed until the teacher passcode is at least 16 characters. Locally, neither applies. Our demo site publishes its key above so anyone can try it, with spending held to a $2 daily cap (`DAILY_SPEND_CAP_USD`); a real deployment would keep the key private.
+
+The **guest view** makes no paid calls. Pages have to opt in to allow guests, every server action refuses them, and answer keys are never sent to them. Guest sessions are signed with a separate key, so a guest token can't pass as a teacher's.
 
 `pnpm eval` has its own cap (`--max-usd`, default $10). The Meta Model API's monthly spend limit only sends an email alert and doesn't stop usage, so the daily cap above is what actually stops spending on that API. Set the alert anyway.
 

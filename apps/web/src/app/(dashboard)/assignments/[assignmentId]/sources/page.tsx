@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getAssignmentForTeacher, listSourcesWithChunks } from "@/server/assignments";
-import { requireTeacher } from "@/server/auth";
+import { requireViewer } from "@/server/auth";
 import { estimateTokens } from "@/server/sources/chunk";
 import { DeleteSourceButton, SourceUploader } from "./source-uploader";
 
@@ -14,7 +14,7 @@ const KIND_LABEL = { pdf: "PDF", docx: "Word", text: "Text", url: "Link" } as co
 
 export default async function SourcesPage({ params }: PageProps<"/assignments/[assignmentId]/sources">) {
   const { assignmentId } = await params;
-  const teacher = await requireTeacher();
+  const teacher = await requireViewer();
   const assignment = await getAssignmentForTeacher(teacher.id, assignmentId);
   if (!assignment) notFound();
   const sourceList = await listSourcesWithChunks(assignment.id);

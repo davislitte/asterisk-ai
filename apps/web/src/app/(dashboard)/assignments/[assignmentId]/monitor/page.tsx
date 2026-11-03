@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LocalDateTime } from "@/components/local-date-time";
 import { getAssignmentForTeacher } from "@/server/assignments";
-import { requireTeacher } from "@/server/auth";
+import { requireViewer } from "@/server/auth";
 import { getMonitorData } from "@/server/monitor";
 import { AutoRefresh } from "./auto-refresh";
 
@@ -16,7 +16,7 @@ const FLAG_LABEL: Record<MessageFlag, string> = {
 
 export default async function MonitorPage({ params }: PageProps<"/assignments/[assignmentId]/monitor">) {
   const { assignmentId } = await params;
-  const teacher = await requireTeacher();
+  const teacher = await requireViewer();
   const assignment = await getAssignmentForTeacher(teacher.id, assignmentId);
   if (!assignment) notFound();
   const { feed, students, totals, truncated } = await getMonitorData(assignment.id, assignment.classId);

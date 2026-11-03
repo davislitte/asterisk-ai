@@ -4,14 +4,14 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { requireTeacher } from "@/server/auth";
+import { requireViewer } from "@/server/auth";
 import { getClassForTeacher, listAssignmentsForClass } from "@/server/classes";
 import { LocalDateTime } from "@/components/local-date-time";
 import { JoinCodeCard } from "./join-code-card";
 
 export default async function ClassPage({ params }: PageProps<"/classes/[classId]">) {
   const { classId } = await params;
-  const teacher = await requireTeacher();
+  const teacher = await requireViewer();
   const klass = await getClassForTeacher(teacher.id, classId);
   if (!klass) notFound();
   const assignmentList = await listAssignmentsForClass(klass.id);
@@ -30,9 +30,11 @@ export default async function ClassPage({ params }: PageProps<"/classes/[classId
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Assignments</h2>
-          <Link href={`/classes/${klass.id}/assignments/new`} className={buttonVariants()}>
-            New assignment
-          </Link>
+          {!teacher.guest && (
+            <Link href={`/classes/${klass.id}/assignments/new`} className={buttonVariants()}>
+              New assignment
+            </Link>
+          )}
         </div>
 
         {assignmentList.length === 0 ? (

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAssignmentForTeacher } from "@/server/assignments";
-import { requireTeacher } from "@/server/auth";
+import { requireViewer } from "@/server/auth";
 import { AssignmentTabs } from "./tabs";
 
 export default async function AssignmentLayout({
@@ -9,7 +9,7 @@ export default async function AssignmentLayout({
   children,
 }: LayoutProps<"/assignments/[assignmentId]">) {
   const { assignmentId } = await params;
-  const teacher = await requireTeacher();
+  const teacher = await requireViewer();
   const assignment = await getAssignmentForTeacher(teacher.id, assignmentId);
   if (!assignment) notFound();
 

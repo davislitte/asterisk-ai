@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { LocalDateTime } from "@/components/local-date-time";
 import type { AgentStep } from "@/server/ai";
 import { getAssignmentForTeacher } from "@/server/assignments";
-import { requireTeacher } from "@/server/auth";
+import { requireViewer } from "@/server/auth";
 import { type StoredClassReport, getLatestClassReport, sectionUsage } from "@/server/reports/class-report";
 import { type ClassWork, type StudentWork, flagCounts, loadClassWork } from "@/server/reports/class-work";
 import { GenerateReportButton } from "./generate-button";
@@ -22,7 +22,7 @@ const LEVEL_STYLE: Record<string, string> = {
 
 export default async function ReportPage({ params }: PageProps<"/assignments/[assignmentId]/report">) {
   const { assignmentId } = await params;
-  const teacher = await requireTeacher();
+  const teacher = await requireViewer();
   const assignment = await getAssignmentForTeacher(teacher.id, assignmentId);
   if (!assignment) notFound();
   const [work, report] = await Promise.all([

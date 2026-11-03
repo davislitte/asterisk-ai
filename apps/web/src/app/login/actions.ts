@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { MIN_SECRET_LENGTH, usableTeacherPasscode } from "@/server/access";
-import { endSession, getOrCreateDemoTeacher, startSession } from "@/server/auth";
+import { endSession, getOrCreateDemoTeacher, startGuestSession, startSession } from "@/server/auth";
 import { passcodeMatches } from "@/server/session-token";
 
 export interface LoginState {
@@ -26,6 +26,12 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
   }
   const teacher = await getOrCreateDemoTeacher();
   await startSession(teacher.id);
+  redirect("/");
+}
+
+export async function viewAsGuest(): Promise<void> {
+  const teacher = await getOrCreateDemoTeacher();
+  await startGuestSession(teacher.id);
   redirect("/");
 }
 

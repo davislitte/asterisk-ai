@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { districtHostConfigured, effectiveAiHost } from "@/server/ai-host";
-import { requireTeacher } from "@/server/auth";
+import { requireViewer } from "@/server/auth";
 import { listClasses } from "@/server/classes";
 import { dailyCapUsd, spentTodayUsd } from "@/server/spend";
 import { AiHostSwitch } from "./ai-host-switch";
 import { NewClassForm } from "./new-class-form";
 
 export default async function ClassesPage() {
-  const teacher = await requireTeacher();
+  const teacher = await requireViewer();
   const [classList, spent, aiHost] = await Promise.all([listClasses(teacher.id), spentTodayUsd(), effectiveAiHost()]);
   const cap = dailyCapUsd();
   const usedPct = cap > 0 ? Math.min(100, (100 * spent) / cap) : 100;
@@ -41,7 +41,7 @@ export default async function ClassesPage() {
         </div>
       </div>
 
-      <NewClassForm />
+      {!teacher.guest && <NewClassForm />}
 
       {classList.length === 0 ? (
         <p className="text-muted-foreground">No classes yet. Create one above to get a join code.</p>
