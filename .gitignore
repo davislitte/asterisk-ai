@@ -4,3 +4,6 @@ node_modules
 .next
 dist
 .turbo
+
+# Extension built for the hosted site
+asterisk-extension.zip

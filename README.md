@@ -12,6 +12,10 @@ Before submitting, the student gets rubric-based feedback and answers three comp
 
 Built for the Meta Global AI Developer Hackathon (Indie track, *Build for Your World*).
 
+## Try it live
+
+The hosted site is at https://asterisk-ai.vercel.app. Every AI call costs real money, so it's for judges only: the teacher passcode, the student access key and the extension zip are in the hackathon submission. To run your own copy, see [Setup](#setup).
+
 ## How it works
 
 | For teachers (web dashboard) | For students (Chrome side panel) |
