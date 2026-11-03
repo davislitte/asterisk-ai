@@ -86,12 +86,12 @@ Nothing produced by `FAKE` is shown in the demo or counted in eval results.
 
 The **Report** tab answers the teacher's real question: where did understanding break down, and what do I reteach tomorrow? ([`class-report.ts`](packages/ai/tasks/class-report.ts), [`tool-loop.ts`](packages/ai/tasks/tool-loop.ts))
 
-1. **Investigate.** Muse Spark gets six read-only tools over the class's work: a class overview, one student's work, a search across every draft, chat and answer, every student's level on one rubric criterion, every answer to one comprehension question, and which note sections the tutor cited most. It decides what to call. On the demo class it typically reads the overview, the weak rubric criteria and comprehension questions, searches for the wording of each suspected mistake, then opens a few students to confirm, all in 13–14 calls. Arguments are validated with zod before a tool runs, errors go back to the model as tool results, and the loop has a budget of 8 turns and 16 calls.
+1. **Investigate.** Muse Spark gets six read-only tools over the class's work: a class overview, one student's work, a search across every draft, chat and answer, every student's level on one rubric criterion, every answer to one comprehension question, and which note sections the tutor cited most. It decides what to call. On the demo class it typically reads the overview, the weak rubric criteria and comprehension questions, searches for the wording of each suspected mistake, then opens a few students to confirm, all in 12–14 calls. Arguments are validated with zod before a tool runs, errors go back to the model as tool results, and the loop has a budget of 8 turns and 16 calls.
 2. **Write.** A structured call turns the investigation into misconceptions with evidence, the note sections behind the most questions, a reteach lesson of 45 minutes or less that uses *new* example problems, an exit ticket and a short note per struggling student.
 3. **Recount.** The investigation samples students; teachers need counts. For each misconception, a separate Muse Spark call goes through every student's work and lists each student it applies to, with a quote as proof. These calls run in parallel.
 4. **Verify.** Nothing reaches the teacher unchecked. Student labels must exist, every quote must appear word for word in that student's own work, and a recounted student counts only if their quote matches. Misconceptions left with no supported students are dropped. The page shows what verification removed and what the recount added.
 
-Students appear to the model only as "Student 01", "Student 02" and so on; names are mapped back on the server. On the 22-student demo class, the recount brought "keeps only the positive square root" from 6 students to 12, the true count, with no false positives. A full report took 24 s and cost $0.16.
+Students appear to the model only as "Student 01", "Student 02" and so on; names are mapped back on the server. On the 25-student demo class, the recount brought "keeps only the positive square root" from 6 students to 12, the true count, with no false positives. The stored report took 12 tool calls and 29 s and cost $0.17.
 
 Each student also gets a page with their latest rubric pre-check (and how it changed since their first), comprehension answers with the grader's reasoning, and their conversation with Asterisk with flags.
 
@@ -307,6 +307,8 @@ Students wait on every reply, so each model call's reasoning effort was set by m
 | Chat reply (tutor draft → leak check, classifier in parallel) | 7–10 s | 3.4–4.1 s |
 | Rubric pre-check (grade → feedback-mode leak check) | ~28 s | 7.5 s |
 | Output tokens per chat turn (incl. reasoning) | ~2,170 | ~690 |
+
+Model latency varies by day. In one run on the hosted site on Nov 2, 2026, a chat reply took 6 s, a rubric pre-check 19 s and photo feedback 25 s, nearly all of it time in the model calls.
 
 **Leak check** (`pnpm --filter @asterisk/ai bench:leak`, [report](packages/ai/eval/results/leak-bench-2026-10-29T01-44-04-670Z.md)). It replays 80 replies the eval judge had already labelled: 40 leaky ones from the baselines, including every subtle leak from the typical-prompt baseline, and 40 safe ones. It also runs the 12 hand-written grader controls 3 times each, at every effort:
 
