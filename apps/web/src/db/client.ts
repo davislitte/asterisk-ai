@@ -7,12 +7,13 @@ if (!connectionString) {
   throw new Error("Missing DATABASE_URL. Add it to .env.local (see .env.example).");
 }
 
-// Reuse one pool across hot reloads in dev.
+// Reuse one pool across hot reloads in dev and across route bundles on a server instance.
 const globalForDb = globalThis as unknown as { asteriskSql?: postgres.Sql };
 
 // `prepare: false` keeps us compatible with Supabase's transaction pooler.
-const sqlClient = globalForDb.asteriskSql ?? postgres(connectionString, { prepare: false });
-if (process.env.NODE_ENV !== "production") globalForDb.asteriskSql = sqlClient;
+// `idle_timeout` drops idle sockets before a paused serverless instance can reuse a dead one.
+const sqlClient = globalForDb.asteriskSql ?? postgres(connectionString, { prepare: false, idle_timeout: 20 });
+globalForDb.asteriskSql = sqlClient;
 
 export const db = drizzle(sqlClient, { schema });
 export { sqlClient };
